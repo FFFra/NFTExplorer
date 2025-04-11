@@ -22,4 +22,3 @@ commit_msg=$(git log -1 --pretty=%B)
 git commit --amend -m "$commit_msg"
 
 echo "All text files now end with a newline and the previous commit has been amended."
-
