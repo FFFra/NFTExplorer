@@ -72,7 +72,7 @@ The application follows a clean architecture pattern with proper separation of c
 
 1. Clone the repository:
    ```
-   git clone https://github.com/FFFra/NFTExplorer/tree/main
+   git clone https://github.com/FFFra/NFTExplorer.git
    cd nft-explorer
    ```
 
