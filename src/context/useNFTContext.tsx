@@ -2,7 +2,9 @@ import React, { createContext, useContext, useState, useCallback } from 'react';
 import { NFT, NFTsResponse } from '../types/nft';
 import { NFTContextType } from '../types/context';
 import { NFTProviderProps } from '../types/components';
-import { fetchNFTs, isVideoMedia } from '../api/nft-service';
+import { fetchNFTs } from '../api/nft-service';
+import { isVideoMedia } from '../utils/helpers';
+import { generateMockNFTs } from '../utils/mockData';
 
 // Create the context
 const NFTContext = createContext<NFTContextType | undefined>(undefined);
@@ -18,6 +20,27 @@ export const useCreateNFTContext = (pageSize: number = 10): NFTContextType => {
     const [nextPageToken, setNextPageToken] = useState<string | undefined>(undefined);
     const [hasMore, setHasMore] = useState<boolean>(true);
     const [totalNFTs, setTotalNFTs] = useState<number>(0);
+    const [useMockData, setUseMockData] = useState<boolean>(false);
+
+    // Process API response, use mock data if response is empty
+    const processApiResponse = useCallback((response: NFTsResponse): NFTsResponse => {
+        // If API returns empty results and we're allowed to use mock data
+        if (response.collectibles.length === 0) {
+            console.warn('API returned no NFTs. Using mock data instead.');
+            const mockNFTs = generateMockNFTs(pageSize);
+
+            return {
+                collectibles: mockNFTs,
+                nextPageToken: undefined,
+                total: mockNFTs.length,
+                page: 1,
+                limit: pageSize,
+                hasMore: false
+            };
+        }
+
+        return response;
+    }, [pageSize]);
 
     // Fetch initial NFTs
     const fetchInitialNFTs = useCallback(async () => {
@@ -26,39 +49,50 @@ export const useCreateNFTContext = (pageSize: number = 10): NFTContextType => {
 
         try {
             const response: NFTsResponse = await fetchNFTs(pageSize);
+            const processedResponse = processApiResponse(response);
 
-            setNFTs(response.collectibles);
-            setNextPageToken(response.nextPageToken);
-            setHasMore(response.hasMore);
-            setTotalNFTs(response.total);
+            setNFTs(processedResponse.collectibles);
+            setNextPageToken(processedResponse.nextPageToken);
+            setHasMore(processedResponse.hasMore);
+            setTotalNFTs(processedResponse.total);
+            setUseMockData(response.collectibles.length === 0);
         } catch (err) {
             setError('Failed to fetch NFTs. Please try again.');
             console.error('Error in fetchInitialNFTs:', err);
+
+            // Fall back to mock data on error
+            const mockNFTs = generateMockNFTs(pageSize);
+            setNFTs(mockNFTs);
+            setNextPageToken(undefined);
+            setHasMore(false);
+            setTotalNFTs(mockNFTs.length);
+            setUseMockData(true);
         } finally {
             setLoading(false);
         }
-    }, [pageSize]);
+    }, [pageSize, processApiResponse]);
 
     // Fetch more NFTs (pagination)
     const fetchMoreNFTs = useCallback(async () => {
-        if (!hasMore || loading || !nextPageToken) return;
+        if (!hasMore || loading || !nextPageToken || useMockData) return;
 
         setLoading(true);
 
         try {
             const response: NFTsResponse = await fetchNFTs(pageSize, nextPageToken);
+            const processedResponse = processApiResponse(response);
 
-            setNFTs(prevNFTs => [...prevNFTs, ...response.collectibles]);
-            setNextPageToken(response.nextPageToken);
-            setHasMore(response.hasMore);
-            setTotalNFTs(response.total);
+            setNFTs(prevNFTs => [...prevNFTs, ...processedResponse.collectibles]);
+            setNextPageToken(processedResponse.nextPageToken);
+            setHasMore(processedResponse.hasMore);
+            setTotalNFTs(prevTotal => prevTotal + processedResponse.collectibles.length);
         } catch (err) {
             setError('Failed to fetch more NFTs. Please try again.');
             console.error('Error in fetchMoreNFTs:', err);
         } finally {
             setLoading(false);
         }
-    }, [hasMore, loading, nextPageToken, pageSize]);
+    }, [hasMore, loading, nextPageToken, pageSize, processApiResponse, useMockData]);
 
     // Get NFT by id
     const getNFTById = useCallback((id: string): NFT | undefined => {
@@ -68,6 +102,7 @@ export const useCreateNFTContext = (pageSize: number = 10): NFTContextType => {
     // Refresh NFTs
     const refreshNFTs = useCallback(async () => {
         setNextPageToken(undefined);
+        setUseMockData(false);
         await fetchInitialNFTs();
     }, [fetchInitialNFTs]);
 
