@@ -7,6 +7,10 @@ export interface NFT {
     mediaType: string;
     mediaUrl: string;
     thumbnailUrl: string;
+    imageUrl: string;
+    price: number;
+    owner: string;
+    createdAt: string;
     creator?: string;
     collection?: {
         name: string;
@@ -17,8 +21,11 @@ export interface NFT {
 }
 
 export interface NFTsResponse {
-    nextPageToken?: string;
-    collectibles: NFT[];
+    items: NFT[];
+    total: number;
+    page: number;
+    limit: number;
+    hasMore: boolean;
 }
 
 export type ViewMode = 'grid' | 'list';
