@@ -8,6 +8,7 @@ import { ScreenDimensions } from '../types/hooks';
 export const HEADER_HEIGHT = 60;
 export const CONTAINER_PADDING = 32; // Total container padding (16px on each side)
 export const CARD_SPACING = 12; // Spacing between cards (6px on each side)
+export const SKELETON_CARD_GAP = 8; // Gap between skeleton cards
 
 /**
  * Calculates the width of an NFT card based on screen width, column count, and view mode
@@ -32,6 +33,28 @@ export const calculateCardWidth = (
     // Calculate available width and divide by number of columns
     const availableWidth = screenWidth - CONTAINER_PADDING - totalSpacing;
     return Math.floor(availableWidth / columns);
+};
+
+/**
+ * Calculates the width of a skeleton card based on screen width, column count, and view mode
+ * 
+ * @param screenWidth - Total width of the screen
+ * @param columns - Number of columns to display in grid view
+ * @param viewMode - Current view mode (grid or list)
+ * @returns The calculated width for the skeleton card in pixels
+ */
+export const calculateSkeletonCardWidth = (
+    screenWidth: number,
+    columns: GridColumns,
+    viewMode: ViewMode
+): number => {
+    if (viewMode === 'list') {
+        return screenWidth - CONTAINER_PADDING; // Full width minus padding
+    }
+
+    const totalGaps = columns - 1;
+    const availableWidth = screenWidth - CONTAINER_PADDING - (totalGaps * SKELETON_CARD_GAP);
+    return availableWidth / columns;
 };
 
 /**

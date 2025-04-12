@@ -11,6 +11,7 @@ import Animated, {
 import styles, { createSkeletonStyles } from './styles';
 import { SkeletonProps } from '../../types/components';
 import { useScreenDimensions } from '../../hooks/useScreenDimensions';
+import { calculateSkeletonCardWidth, calculateCardHeight } from '../../utils/metrics';
 
 const NFTSkeleton: React.FC<SkeletonProps> = ({ viewMode, columns }) => {
     const dimensions = useScreenDimensions();
@@ -22,19 +23,9 @@ const NFTSkeleton: React.FC<SkeletonProps> = ({ viewMode, columns }) => {
         createSkeletonStyles(dimensions),
         [dimensions]);
 
-    // Calculate dimensions based on column count and view mode
-    const getCardWidth = () => {
-        if (viewMode === 'list') return SCREEN_WIDTH - 32; // Full width minus padding
-
-        const gap = 8;
-        const totalGaps = columns - 1;
-        const totalPadding = 32; // 16 on each side
-        const availableWidth = SCREEN_WIDTH - totalPadding - (totalGaps * gap);
-        return availableWidth / columns;
-    };
-
-    const cardWidth = getCardWidth();
-    const cardHeight = viewMode === 'list' ? 120 : cardWidth;
+    // Calculate card dimensions using utility functions
+    const cardWidth = calculateSkeletonCardWidth(SCREEN_WIDTH, columns, viewMode);
+    const cardHeight = calculateCardHeight(cardWidth, viewMode);
 
     useEffect(() => {
         shimmer.value = withRepeat(
