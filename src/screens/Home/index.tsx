@@ -9,7 +9,8 @@ import {
     TouchableOpacity,
     RefreshControl,
     Dimensions,
-    StatusBar
+    StatusBar,
+    Platform
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -288,6 +289,7 @@ const HomeScreen = () => {
                     numColumns={viewMode === 'grid' ? columns : 1}
                     key={`${viewMode}-${columns}`} // Force re-render when changing layout
                     contentContainerStyle={styles.listContent}
+                    columnWrapperStyle={viewMode === 'grid' && columns > 1 ? { justifyContent: 'space-evenly' } : undefined}
                     showsVerticalScrollIndicator={false}
                     refreshControl={
                         <RefreshControl
@@ -309,6 +311,7 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: '#ffffff',
+        paddingTop: Platform.OS === 'android' ? 30 : 0, // Add top padding for Android status bar
     },
     header: {
         paddingHorizontal: 16,
@@ -317,10 +320,18 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         borderBottomWidth: 1,
         borderBottomColor: '#f0f0f0',
+        height: 60,
+        backgroundColor: '#ffffff',
+        // Add elevation for Android shadow
+        ...Platform.OS === 'android' ? {
+            elevation: 4,
+            paddingTop: 8,
+        } : {},
     },
     title: {
         fontSize: 22,
         fontWeight: 'bold',
+        color: '#333',
     },
     viewControls: {
         flexDirection: 'row',
@@ -354,6 +365,7 @@ const styles = StyleSheet.create({
     },
     listContent: {
         padding: 8,
+        paddingBottom: 80, // Add padding for tab bar
     },
     errorContainer: {
         flex: 1,

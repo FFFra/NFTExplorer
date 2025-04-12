@@ -6,7 +6,8 @@ import {
     TouchableOpacity,
     Dimensions,
     ActivityIndicator,
-    StyleSheet
+    StyleSheet,
+    Platform
 } from 'react-native';
 import Animated, {
     useSharedValue,
@@ -60,13 +61,15 @@ const NFTCard: React.FC<NFTCardProps> = ({
 
     // Calculate dimensions based on column count and view mode
     const getCardWidth = () => {
-        if (viewMode === 'list') return SCREEN_WIDTH - 32; // Full width minus padding
+        if (viewMode === 'list') {
+            return SCREEN_WIDTH - 32; // Full width minus padding
+        }
 
+        // Simple, reliable approach for grid mode
         const gap = 8;
-        const totalGaps = columns - 1;
-        const totalPadding = 32; // 16 on each side
-        const availableWidth = SCREEN_WIDTH - totalPadding - (totalGaps * gap);
-        return availableWidth / columns;
+        const padding = 16; // Padding on screen edges (8px on each side)
+        const availableWidth = SCREEN_WIDTH - padding - (gap * (columns - 1));
+        return Math.floor(availableWidth / columns);
     };
 
     const cardWidth = getCardWidth();
@@ -266,7 +269,25 @@ const NFTCard: React.FC<NFTCardProps> = ({
 
 const styles = StyleSheet.create({
     container: {
-        margin: 4,
+        margin: 6,
+        backgroundColor: '#ffffff',
+        borderRadius: 12,
+        overflow: 'hidden',
+        ...Platform.select({
+            android: {
+                elevation: 2,
+            },
+            ios: {
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: 1 },
+                shadowOpacity: 0.1,
+                shadowRadius: 2,
+            },
+        }),
+    },
+    touchable: {
+        width: '100%',
+        height: '100%',
     },
     mediaContainer: {
         position: 'relative',
@@ -280,6 +301,8 @@ const styles = StyleSheet.create({
     media: {
         width: '100%',
         height: '100%',
+        borderTopLeftRadius: 12,
+        borderTopRightRadius: 12,
     },
     loadingContainer: {
         ...StyleSheet.absoluteFillObject,
@@ -294,16 +317,17 @@ const styles = StyleSheet.create({
     },
     info: {
         padding: 12,
-        backgroundColor: '#fff',
+        paddingVertical: 8,
+        backgroundColor: '#ffffff',
     },
     name: {
-        fontSize: 16,
+        fontSize: 14,
         fontWeight: '600',
         color: '#333',
-        marginBottom: 4,
+        marginBottom: 2,
     },
     price: {
-        fontSize: 14,
+        fontSize: 12,
         color: '#666',
     },
     loadingText: {
