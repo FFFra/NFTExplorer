@@ -16,13 +16,14 @@ import Animated, {
     interpolate
 } from 'react-native-reanimated';
 import { NFT, GridColumns, ViewMode } from '../../types/nft';
-
+import styles from './styles';
 interface NFTCardProps {
     nft: NFT;
     onPress: (nft: NFT) => void;
     columns: GridColumns;
     viewMode: ViewMode;
     index: number;
+    style?: object;
 }
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -40,8 +41,8 @@ const isJsonMetadataUrl = (url: string): boolean => {
 };
 
 // Function to get a placeholder image when all else fails
-const getPlaceholderImage = (): string => {
-    return 'https://via.placeholder.com/300x300?text=NFT';
+const getPlaceholderImage = (id: string): string => {
+    return `https://picsum.photos/400/400?random=${id.replace(/[^0-9]/g, '')}`;
 };
 
 const NFTCard: React.FC<NFTCardProps> = ({
@@ -49,7 +50,8 @@ const NFTCard: React.FC<NFTCardProps> = ({
     onPress,
     columns,
     viewMode,
-    index
+    index,
+    style = {}
 }) => {
     const [isLoading, setIsLoading] = useState(true);
     const [hasError, setHasError] = useState(false);
@@ -65,10 +67,13 @@ const NFTCard: React.FC<NFTCardProps> = ({
             return SCREEN_WIDTH - 32; // Full width minus padding
         }
 
-        // Simple, reliable approach for grid mode
-        const gap = 8;
-        const padding = 16; // Padding on screen edges (8px on each side)
-        const availableWidth = SCREEN_WIDTH - padding - (gap * (columns - 1));
+        // Calculate width based on container padding and number of columns
+        const containerPadding = 32; // Total container padding (16px on each side)
+        const cardSpacing = 12; // Spacing between cards (6px on each side)
+        const totalSpacing = cardSpacing * (columns - 1); // Total spacing between cards
+
+        // Calculate available width and divide by number of columns
+        const availableWidth = SCREEN_WIDTH - containerPadding - totalSpacing;
         return Math.floor(availableWidth / columns);
     };
 
@@ -83,8 +88,7 @@ const NFTCard: React.FC<NFTCardProps> = ({
                 const sourceUrl = nft.imageUrl || nft.thumbnailUrl || nft.mediaUrl;
 
                 if (!sourceUrl) {
-                    console.warn(`No source URL available for NFT ${nft.id}`);
-                    setActualImageUrl(`https://picsum.photos/400/400?random=${nft.id.replace(/\D/g, '')}`);
+                    setActualImageUrl(getPlaceholderImage(nft.id));
                     setIsLoading(false);
                     return;
                 }
@@ -95,8 +99,6 @@ const NFTCard: React.FC<NFTCardProps> = ({
                     setIsLoading(false);
                     return;
                 }
-
-                console.warn(`Fetching metadata for NFT ${nft.id} from ${sourceUrl}`);
 
                 // Use a timeout to prevent hanging requests
                 const controller = new AbortController();
@@ -111,25 +113,20 @@ const NFTCard: React.FC<NFTCardProps> = ({
                     }
 
                     const metadata = await response.json();
-                    console.warn(`Metadata for NFT ${nft.id}:`, metadata);
 
                     // Extract the image URL from the metadata
                     if (metadata && metadata.image) {
                         const imageUrl = convertIpfsToHttp(metadata.image);
-                        console.warn(`Extracted image URL for NFT ${nft.id}: ${imageUrl}`);
                         setActualImageUrl(imageUrl);
                     } else {
-                        console.warn(`No image found in metadata for NFT ${nft.id}`);
-                        setActualImageUrl(`https://picsum.photos/400/400?random=${nft.id.replace(/\D/g, '')}`);
+                        setActualImageUrl(getPlaceholderImage(nft.id));
                     }
                 } catch (fetchError) {
-                    console.warn(`Error fetching metadata for NFT ${nft.id}:`, fetchError);
-                    setActualImageUrl(`https://picsum.photos/400/400?random=${nft.id.replace(/\D/g, '')}`);
+                    setActualImageUrl(getPlaceholderImage(nft.id));
                     clearTimeout(timeoutId);
                 }
             } catch (error) {
-                console.error(`Error in metadata process for NFT ${nft.id}:`, error);
-                setActualImageUrl(`https://picsum.photos/400/400?random=${nft.id.replace(/\D/g, '')}`);
+                setActualImageUrl(getPlaceholderImage(nft.id));
                 setHasError(true);
             } finally {
                 setIsLoading(false);
@@ -181,23 +178,18 @@ const NFTCard: React.FC<NFTCardProps> = ({
     };
 
     const handleError = () => {
-        console.warn(`Image load error for NFT ${nft.id}, URL: ${actualImageUrl}`);
-
         // Try to use a different URL if the current one failed
         if (actualImageUrl && (actualImageUrl === nft.imageUrl || actualImageUrl === nft.thumbnailUrl)) {
             // If the primary URL failed, try a different one from the NFT
             const alternateUrl = nft.mediaUrl || nft.thumbnailUrl || nft.imageUrl;
             if (alternateUrl && alternateUrl !== actualImageUrl) {
-                console.warn(`Trying alternate URL for NFT ${nft.id}: ${alternateUrl}`);
                 setActualImageUrl(alternateUrl);
                 return; // Don't mark as error yet, we're trying another URL
             }
         }
 
         // If we've tried all URLs or don't have alternatives, use a secure placeholder
-        const fallbackUrl = `https://picsum.photos/400/400?random=${nft.id.replace(/[^0-9]/g, '')}`;
-        console.warn(`Using fallback image for NFT ${nft.id}: ${fallbackUrl}`);
-        setActualImageUrl(fallbackUrl);
+        setActualImageUrl(getPlaceholderImage(nft.id));
         setHasError(false); // We're not in an error state since we're using a placeholder
         setIsLoading(false);
     };
@@ -246,7 +238,8 @@ const NFTCard: React.FC<NFTCardProps> = ({
                 styles.container,
                 { width: cardWidth },
                 cardAnimatedStyle,
-                entryAnimatedStyle
+                entryAnimatedStyle,
+                style
             ]}
         >
             <TouchableOpacity
@@ -266,75 +259,5 @@ const NFTCard: React.FC<NFTCardProps> = ({
         </Animated.View>
     );
 };
-
-const styles = StyleSheet.create({
-    container: {
-        margin: 6,
-        backgroundColor: '#ffffff',
-        borderRadius: 12,
-        overflow: 'hidden',
-        ...Platform.select({
-            android: {
-                elevation: 2,
-            },
-            ios: {
-                shadowColor: '#000',
-                shadowOffset: { width: 0, height: 1 },
-                shadowOpacity: 0.1,
-                shadowRadius: 2,
-            },
-        }),
-    },
-    touchable: {
-        width: '100%',
-        height: '100%',
-    },
-    mediaContainer: {
-        position: 'relative',
-        width: '100%',
-        justifyContent: 'center',
-        alignItems: 'center',
-        backgroundColor: '#f9f9f9',
-        borderRadius: 12,
-        overflow: 'hidden',
-    },
-    media: {
-        width: '100%',
-        height: '100%',
-        borderTopLeftRadius: 12,
-        borderTopRightRadius: 12,
-    },
-    loadingContainer: {
-        ...StyleSheet.absoluteFillObject,
-        justifyContent: 'center',
-        alignItems: 'center',
-        backgroundColor: 'rgba(0, 0, 0, 0.1)',
-    },
-    errorText: {
-        color: '#e74c3c',
-        textAlign: 'center',
-        padding: 10,
-    },
-    info: {
-        padding: 12,
-        paddingVertical: 8,
-        backgroundColor: '#ffffff',
-    },
-    name: {
-        fontSize: 14,
-        fontWeight: '600',
-        color: '#333',
-        marginBottom: 2,
-    },
-    price: {
-        fontSize: 12,
-        color: '#666',
-    },
-    loadingText: {
-        color: '#333',
-        fontSize: 14,
-        marginTop: 10,
-    },
-});
 
 export default NFTCard;

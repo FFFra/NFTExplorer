@@ -88,7 +88,6 @@ const MOCK_NFTS: NFT[] = [
 ];
 
 export const fetchNFTs = async (pageSize = 10, pageToken?: string): Promise<NFTsResponse> => {
-    console.warn('fetchNFTs called with pageSize:', pageSize, 'pageToken:', pageToken);
     try {
         // Construct the endpoint
         const endpoint = `${BASE_URL}/addresses/${ADDRESS}/balances:listCollectibles`;
@@ -97,16 +96,12 @@ export const fetchNFTs = async (pageSize = 10, pageToken?: string): Promise<NFTs
             ...(pageToken && { pageToken })
         };
 
-        console.warn('Fetching from endpoint:', endpoint, 'with params:', params);
         const response = await axios.get(endpoint, { params });
-        console.warn('API Response status:', response.status);
-        console.warn('API Response data structure:', Object.keys(response.data));
 
         // Check if response has collectibleBalances
         const apiCollectibles = response.data.collectibleBalances;
 
         if (!apiCollectibles || apiCollectibles.length === 0) {
-            console.warn('No NFTs found in API response, using mock data instead');
             // Return mock data
             const page = pageToken ? parseInt(pageToken, 10) : 1;
             const startIdx = (page - 1) * pageSize;
@@ -123,13 +118,6 @@ export const fetchNFTs = async (pageSize = 10, pageToken?: string): Promise<NFTs
             };
         }
 
-        console.warn(`Found ${apiCollectibles.length} NFTs in the response`);
-
-        // Print a sample collectible for debugging
-        if (apiCollectibles.length > 0) {
-            console.warn('Sample collectible:', JSON.stringify(apiCollectibles[0], null, 2));
-        }
-
         // Transform the API response to match our types
         const transformedCollectibles: NFT[] = await Promise.all(apiCollectibles.map(async (item: any, index: number) => {
             try {
@@ -141,13 +129,11 @@ export const fetchNFTs = async (pageSize = 10, pageToken?: string): Promise<NFTs
                 // If this is a JSON URL, try to fetch the metadata
                 if (item.tokenUri && item.tokenUri.endsWith('.json')) {
                     try {
-                        console.warn(`Fetching metadata for NFT ${item.tokenId} from ${item.tokenUri}`);
                         const metadataResponse = await axios.get(convertIpfsToHttp(item.tokenUri));
                         metadata = metadataResponse.data;
 
                         if (metadata.image) {
                             imageUrl = convertIpfsToHttp(metadata.image);
-                            console.warn(`Found image URL in metadata: ${imageUrl}`);
                         }
 
                         if (metadata.name) {
@@ -158,7 +144,7 @@ export const fetchNFTs = async (pageSize = 10, pageToken?: string): Promise<NFTs
                             description = metadata.description;
                         }
                     } catch (metadataError) {
-                        console.warn(`Error fetching metadata for NFT ${item.tokenId}:`, metadataError);
+                        // Silently handle metadata fetch errors
                     }
                 } else if (item.tokenUri) {
                     // The tokenUri itself might be the image URL
@@ -168,7 +154,6 @@ export const fetchNFTs = async (pageSize = 10, pageToken?: string): Promise<NFTs
                 // If we still don't have an image URL, use a placeholder
                 if (!imageUrl) {
                     imageUrl = getPlaceholderImage(index);
-                    console.warn(`Using placeholder image for NFT ${item.tokenId}: ${imageUrl}`);
                 }
 
                 return {
@@ -193,7 +178,6 @@ export const fetchNFTs = async (pageSize = 10, pageToken?: string): Promise<NFTs
                     createdAt: new Date().toISOString()
                 };
             } catch (error) {
-                console.error(`Error transforming NFT ${item.tokenId}:`, error);
                 // Return a basic NFT with placeholder image if transformation fails
                 return {
                     id: `${item.address}-${item.tokenId}`,
@@ -230,10 +214,9 @@ export const fetchNFTs = async (pageSize = 10, pageToken?: string): Promise<NFTs
     } catch (error) {
         console.error('Error fetching NFTs:', error);
         if (axios.isAxiosError(error)) {
-            console.error('Axios error details:', {
+            console.error('API error details:', {
                 status: error.response?.status,
-                statusText: error.response?.statusText,
-                data: error.response?.data
+                statusText: error.response?.statusText
             });
         }
 

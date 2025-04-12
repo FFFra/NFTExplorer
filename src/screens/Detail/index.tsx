@@ -18,7 +18,6 @@ import Animated, {
     withTiming,
     withSpring,
     interpolate,
-    Extrapolate,
     runOnJS
 } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
@@ -146,7 +145,7 @@ const DetailScreen = () => {
                         scrollY.value,
                         [0, HEADER_HEIGHT],
                         [0, -HEADER_HEIGHT],
-                        Extrapolate.CLAMP
+                        'clamp'
                     ),
                 },
             ],
@@ -162,7 +161,7 @@ const DetailScreen = () => {
                         scrollY.value,
                         [0, IMAGE_HEIGHT],
                         [0, -IMAGE_HEIGHT / 2],
-                        Extrapolate.CLAMP
+                        'clamp'
                     ),
                 },
             ],
@@ -178,7 +177,7 @@ const DetailScreen = () => {
                         contentOpacity.value,
                         [0, 1],
                         [50, 0],
-                        Extrapolate.CLAMP
+                        'clamp'
                     ),
                 },
             ],
@@ -277,7 +276,7 @@ const DetailScreen = () => {
                         scrollY.value,
                         [0, HEADER_HEIGHT],
                         [1, 0],
-                        Extrapolate.CLAMP
+                        'clamp'
                     );
                 }}
                 scrollEventThrottle={16}

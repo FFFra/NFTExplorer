@@ -67,16 +67,7 @@ const HomeScreen = () => {
         );
     }, [viewMode, columns]);
 
-    // Add this log whenever nfts state changes
-    useEffect(() => {
-        console.warn('NFTs state updated:', {
-            count: nfts.length,
-            firstNft: nfts.length > 0 ? nfts[0] : null
-        });
-    }, [nfts]);
-
     const loadNFTs = async (refresh = true) => {
-        console.warn(`${refresh ? 'Initial load' : 'Loading more'} NFTs...`);
         try {
             if (refresh) {
                 setLoading(true);
@@ -86,16 +77,9 @@ const HomeScreen = () => {
             }
 
             const token = refresh ? undefined : nextPageToken;
-            console.warn('Fetching NFTs...', { pageSize: 12, token });
             const response = await fetchNFTs(12, token);
-            console.warn('Response received:', {
-                hasCollectibles: !!response?.collectibles,
-                collectiblesCount: response?.collectibles?.length || 0
-            });
 
             if (response && response.collectibles && response.collectibles.length > 0) {
-                console.warn('NFTs found, updating state');
-
                 if (refresh) {
                     setNfts(response.collectibles);
                 } else {
@@ -105,19 +89,7 @@ const HomeScreen = () => {
                 // Use page information to construct next page token
                 setNextPageToken(response.hasMore ? String(response.page + 1) : undefined);
                 setError(null);
-
-                // Verify the NFT data structure matches what the card component expects
-                if (response.collectibles.length > 0) {
-                    const firstNft = response.collectibles[0];
-                    console.warn('Sample NFT data structure:', {
-                        id: firstNft.id,
-                        name: firstNft.name,
-                        imageUrl: firstNft.thumbnailUrl || firstNft.mediaUrl,
-                        hasImageUrl: !!firstNft.thumbnailUrl || !!firstNft.mediaUrl
-                    });
-                }
             } else {
-                console.warn('No collectibles found in response');
                 if (refresh) {
                     setNfts([]);
                     setError('No NFTs found. Please try again later.');
@@ -196,13 +168,16 @@ const HomeScreen = () => {
         };
     });
 
-    // Add this debug helper for rendering NFT items
+    // Updated renderNFTItem to apply correct margins for different column configurations
     const renderNFTItem = ({ item, index }: { item: NFT; index: number }) => {
-        console.warn(`Rendering NFT at index ${index}:`, {
-            id: item.id,
-            name: item.name,
-            hasImageUrl: !!item.thumbnailUrl || !!item.mediaUrl
-        });
+        // Add spacing style for grid mode only
+        const itemStyle = viewMode === 'grid' && columns > 1
+            ? {
+                // Add equal spacing between cards
+                marginLeft: index % columns === 0 ? 0 : 6,  // No left margin for first card in row
+                marginRight: (index + 1) % columns === 0 ? 0 : 6, // No right margin for last card in row
+            }
+            : {}; // No extra styling for list mode
 
         return (
             <NFTCard
@@ -211,6 +186,7 @@ const HomeScreen = () => {
                 columns={columns}
                 viewMode={viewMode}
                 index={index}
+                style={itemStyle}
             />
         );
     };
@@ -289,7 +265,11 @@ const HomeScreen = () => {
                     numColumns={viewMode === 'grid' ? columns : 1}
                     key={`${viewMode}-${columns}`} // Force re-render when changing layout
                     contentContainerStyle={styles.listContent}
-                    columnWrapperStyle={viewMode === 'grid' && columns > 1 ? { justifyContent: 'space-evenly' } : undefined}
+                    columnWrapperStyle={
+                        viewMode === 'grid' && columns > 1
+                            ? { justifyContent: 'space-evenly' }
+                            : undefined
+                    }
                     showsVerticalScrollIndicator={false}
                     refreshControl={
                         <RefreshControl
@@ -364,8 +344,8 @@ const styles = StyleSheet.create({
         flex: 1,
     },
     listContent: {
-        padding: 8,
-        paddingBottom: 80, // Add padding for tab bar
+        padding: 16, // Use consistent padding on all sides
+        paddingBottom: 80, // Add extra padding for tab bar
     },
     errorContainer: {
         flex: 1,

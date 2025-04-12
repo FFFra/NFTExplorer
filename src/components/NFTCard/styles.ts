@@ -1,84 +1,74 @@
-import { StyleSheet } from 'react-native';
+import { StyleSheet, Platform } from 'react-native';
 
-export const styles = StyleSheet.create({
+const styles = StyleSheet.create({
     container: {
-        margin: 4,
-        borderRadius: 12,
+        marginVertical: 6, // Consistent vertical spacing
+        marginHorizontal: 0, // No horizontal margin - spacing handled by FlatList
         backgroundColor: '#ffffff',
-        shadowColor: '#000',
-        shadowOffset: {
-            width: 0,
-            height: 2,
-        },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-        elevation: 3,
-    },
-    listContainer: {
-        flexDirection: 'row',
-        height: 120,
-    },
-    gridContainer: {
-        aspectRatio: 1,
-    },
-    listTouchable: {
-        flex: 1,
-        flexDirection: 'row',
-    },
-    gridTouchable: {
-        flex: 1,
-    },
-    mediaContainer: {
-        backgroundColor: '#f5f5f5',
         borderRadius: 12,
         overflow: 'hidden',
+        ...Platform.select({
+            android: {
+                elevation: 2,
+            },
+            ios: {
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: 1 },
+                shadowOpacity: 0.1,
+                shadowRadius: 2,
+            },
+        }),
+    },
+    touchable: {
+        width: '100%',
+        height: '100%',
+    },
+    mediaContainer: {
+        position: 'relative',
+        width: '100%',
         justifyContent: 'center',
         alignItems: 'center',
+        backgroundColor: '#f9f9f9',
+        borderRadius: 12,
+        overflow: 'hidden',
     },
     media: {
-        borderRadius: 12,
+        width: '100%',
+        height: '100%',
+        borderTopLeftRadius: 12,
+        borderTopRightRadius: 12,
     },
-    playIconOverlay: {
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
+    loadingContainer: {
+        ...StyleSheet.absoluteFillObject,
         justifyContent: 'center',
         alignItems: 'center',
-        backgroundColor: 'rgba(0, 0, 0, 0.3)',
+        backgroundColor: 'rgba(0, 0, 0, 0.1)',
     },
-    playIcon: {
-        color: '#ffffff',
-        fontSize: 24,
-        fontWeight: 'bold',
+    errorText: {
+        color: '#e74c3c',
+        textAlign: 'center',
+        padding: 10,
     },
-    listInfoContainer: {
-        flex: 1,
+    info: {
         padding: 12,
-        justifyContent: 'center',
+        paddingVertical: 8,
+        backgroundColor: '#ffffff',
     },
-    gridInfoContainer: {
-        padding: 8,
-    },
-    listTitle: {
-        fontSize: 16,
-        fontWeight: '600',
-        color: '#333',
-        marginBottom: 4,
-    },
-    gridTitle: {
+    name: {
         fontSize: 14,
         fontWeight: '600',
         color: '#333',
         marginBottom: 2,
     },
-    listCollection: {
-        fontSize: 14,
-        color: '#666',
-    },
-    gridCollection: {
+    price: {
         fontSize: 12,
         color: '#666',
     },
+    loadingText: {
+        color: '#333',
+        fontSize: 14,
+        marginTop: 10,
+    },
 });
+
+export default styles;
