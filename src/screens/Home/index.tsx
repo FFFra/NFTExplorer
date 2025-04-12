@@ -26,7 +26,7 @@ import { RootStackParamList } from '../../navigation';
 import { NFT, ViewMode, GridColumns } from '../../types/nft';
 import NFTCard from '../../components/NFTCard';
 import NFTSkeleton from '../../components/LoadingStates/index';
-import { fetchNFTs } from '../../api/nft-service';
+import { useNFT } from '../../context';
 import { useScreenDimensions } from '../../hooks/useScreenDimensions';
 
 import { Ionicons } from '@expo/vector-icons'; // Make sure to install expo/vector-icons
@@ -39,22 +39,27 @@ const AnimatedFlatList = Animated.createAnimatedComponent(FlatList<NFT>);
 const HomeScreen = () => {
     const { width: SCREEN_WIDTH } = useScreenDimensions();
     const navigation = useNavigation<HomeScreenNavigationProp>();
-    const [nfts, setNfts] = useState<NFT[]>([]);
-    const [loading, setLoading] = useState<boolean>(true);
+    const {
+        nfts,
+        loading,
+        error,
+        hasMore,
+        fetchInitialNFTs,
+        fetchMoreNFTs,
+        refreshNFTs
+    } = useNFT();
+
     const [refreshing, setRefreshing] = useState<boolean>(false);
-    const [error, setError] = useState<string | null>(null);
     const [viewMode, setViewMode] = useState<ViewMode>('grid');
     const [columns, setColumns] = useState<GridColumns>(2);
-    const [nextPageToken, setNextPageToken] = useState<string | undefined>(undefined);
     const [loadingMore, setLoadingMore] = useState<boolean>(false);
 
     // Animated values
     const layoutAnimation = useSharedValue(0);
     const headerHeight = useSharedValue(60);
 
-
     useEffect(() => {
-        loadNFTs();
+        fetchInitialNFTs();
         StatusBar.setBarStyle('dark-content');
     }, []);
 
@@ -66,52 +71,17 @@ const HomeScreen = () => {
         );
     }, [viewMode, columns]);
 
-    const loadNFTs = async (refresh = true) => {
-        try {
-            if (refresh) {
-                setLoading(true);
-                setNextPageToken(undefined);
-            } else {
-                setLoadingMore(true);
-            }
-
-            const token = refresh ? undefined : nextPageToken;
-            const response = await fetchNFTs(12, token);
-
-            if (response && response.collectibles && response.collectibles.length > 0) {
-                if (refresh) {
-                    setNfts(response.collectibles);
-                } else {
-                    setNfts(prev => [...prev, ...response.collectibles]);
-                }
-
-                // Use page information to construct next page token
-                setNextPageToken(response.hasMore ? String(response.page + 1) : undefined);
-                setError(null);
-            } else {
-                if (refresh) {
-                    setNfts([]);
-                    setError('No NFTs found. Please try again later.');
-                }
-            }
-        } catch (err) {
-            setError('Failed to load NFTs. Please try again.');
-            console.error('Error in loadNFTs:', err);
-        } finally {
-            setLoading(false);
-            setRefreshing(false);
-            setLoadingMore(false);
-        }
-    };
-
-    const handleRefresh = () => {
+    const handleRefresh = async () => {
         setRefreshing(true);
-        loadNFTs();
+        await refreshNFTs();
+        setRefreshing(false);
     };
 
-    const loadMoreNFTs = () => {
-        if (nextPageToken && !loadingMore) {
-            loadNFTs(false);
+    const handleLoadMore = async () => {
+        if (hasMore && !loadingMore && !refreshing) {
+            setLoadingMore(true);
+            await fetchMoreNFTs();
+            setLoadingMore(false);
         }
     };
 
@@ -202,7 +172,7 @@ const HomeScreen = () => {
 
     const getKey = (item: NFT) => item.id;
 
-    if (loading) {
+    if (loading && nfts.length === 0) {
         return (
             <SafeAreaView style={styles.container}>
                 <Animated.View style={[styles.header, headerAnimatedStyle]}>
@@ -213,7 +183,7 @@ const HomeScreen = () => {
         );
     }
 
-    if (error) {
+    if (error && nfts.length === 0) {
         return (
             <SafeAreaView style={styles.container}>
                 <Animated.View style={[styles.header, headerAnimatedStyle]}>
@@ -221,7 +191,7 @@ const HomeScreen = () => {
                 </Animated.View>
                 <View style={styles.errorContainer}>
                     <Text style={styles.errorText}>{error}</Text>
-                    <TouchableOpacity style={styles.retryButton} onPress={() => loadNFTs()}>
+                    <TouchableOpacity style={styles.retryButton} onPress={() => fetchInitialNFTs()}>
                         <Text style={styles.retryButtonText}>Retry</Text>
                     </TouchableOpacity>
                 </View>
@@ -277,7 +247,7 @@ const HomeScreen = () => {
                             tintColor="#3498db"
                         />
                     }
-                    onEndReached={loadMoreNFTs}
+                    onEndReached={handleLoadMore}
                     onEndReachedThreshold={0.5}
                     ListFooterComponent={renderFooter}
                 />

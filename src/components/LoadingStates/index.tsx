@@ -10,12 +10,8 @@ import Animated, {
 } from 'react-native-reanimated';
 import styles, { createSkeletonStyles } from './styles';
 import { ViewMode, GridColumns } from '../../types/nft';
+import { SkeletonProps } from '../../types/components';
 import { useScreenDimensions } from '../../hooks/useScreenDimensions';
-
-interface SkeletonProps {
-    viewMode: ViewMode;
-    columns: GridColumns;
-}
 
 const NFTSkeleton: React.FC<SkeletonProps> = ({ viewMode, columns }) => {
     const dimensions = useScreenDimensions();

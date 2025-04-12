@@ -8,17 +8,11 @@ import Animated, {
     interpolate,
 } from 'react-native-reanimated';
 import { NFT } from '../../types/nft';
+import { NFTDetailProps } from '../../types/components';
 import { useScreenDimensions } from '../../hooks/useScreenDimensions';
 import { formatAddress } from '../../utils/helpers';
 import { HEADER_HEIGHT, calculateDetailStyles } from '../../utils/metrics';
 import styles from './styles';
-
-interface NFTDetailProps {
-    nft: NFT;
-    imageUrl: string;
-    onBack: () => void;
-    scrollY: Animated.SharedValue<number>;
-}
 
 const NFTDetail: React.FC<NFTDetailProps> = ({
     nft,

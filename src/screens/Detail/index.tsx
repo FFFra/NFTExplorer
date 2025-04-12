@@ -22,22 +22,14 @@ import Animated, {
 import { Ionicons } from '@expo/vector-icons';
 import { RootStackParamList } from '../../navigation';
 import { NFT } from '../../types/nft';
-import { fetchNFTs } from '../../api/nft-service';
+import { useNFT } from '../../context';
 import { useScreenDimensions } from '../../hooks/useScreenDimensions';
+import { convertIpfsToHttp } from '../../utils/helpers';
 
 type DetailScreenRouteProp = RouteProp<RootStackParamList, 'Detail'>;
 type DetailScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Detail'>;
 
 const HEADER_HEIGHT = 60;
-
-// Function to convert IPFS URL to HTTP URL if needed
-const convertIpfsToHttp = (ipfsUrl: string): string => {
-    if (!ipfsUrl) return '';
-    if (ipfsUrl.startsWith('ipfs://')) {
-        return ipfsUrl.replace('ipfs://', 'https://ipfs.io/ipfs/');
-    }
-    return ipfsUrl;
-};
 
 const DetailScreen = () => {
     const dimensions = useScreenDimensions();
@@ -56,6 +48,7 @@ const DetailScreen = () => {
     const navigation = useNavigation<DetailScreenNavigationProp>();
     const route = useRoute<DetailScreenRouteProp>();
     const { nftId } = route.params;
+    const { getNFTById, nfts, fetchInitialNFTs } = useNFT();
 
     const [nft, setNft] = useState<NFT | null>(null);
     const [isLoading, setIsLoading] = useState(true);
@@ -92,10 +85,14 @@ const DetailScreen = () => {
                 setIsLoading(true);
                 console.warn(`Fetching details for NFT ID: ${nftId}`);
 
-                // Fetch all NFTs and find the one we need by ID
-                const response = await fetchNFTs(50);
+                // Try to get NFT from the context first
+                let foundNFT = getNFTById(nftId);
 
-                const foundNFT = response.collectibles.find((item: NFT) => item.id === nftId);
+                // If not found, try to fetch all NFTs first
+                if (!foundNFT && nfts.length === 0) {
+                    await fetchInitialNFTs();
+                    foundNFT = getNFTById(nftId);
+                }
 
                 if (foundNFT) {
                     console.warn(`Found NFT: ${foundNFT.name}`);
@@ -144,7 +141,7 @@ const DetailScreen = () => {
         };
 
         loadNFT();
-    }, [nftId, contentOpacity]);
+    }, [nftId, contentOpacity, getNFTById, nfts.length, fetchInitialNFTs]);
 
     // Animated styles
     const headerAnimatedStyle = useAnimatedStyle(() => {

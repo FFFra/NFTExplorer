@@ -2,7 +2,7 @@
  * UI metrics and layout calculations
  */
 import { ViewMode, GridColumns } from '../types/nft';
-import { ScreenDimensions } from '../hooks/useScreenDimensions';
+import { ScreenDimensions } from '../types/hooks';
 
 // Common layout constants
 export const HEADER_HEIGHT = 60;

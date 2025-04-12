@@ -1,11 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Dimensions, ScaledSize } from 'react-native';
-
-export interface ScreenDimensions {
-    width: number;
-    height: number;
-    isPortrait: boolean;
-}
+import { ScreenDimensions } from '../types/hooks';
 
 export const useScreenDimensions = (): ScreenDimensions => {
     const [dimensions, setDimensions] = useState<ScreenDimensions>(() => {

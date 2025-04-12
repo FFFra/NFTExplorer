@@ -1,8 +1,9 @@
 import { StyleSheet } from 'react-native';
-import { ScreenDimensions } from '../../hooks/useScreenDimensions';
+import { ScreenDimensions } from '../../types/hooks';
+import { SkeletonStyles } from '../../types/components';
 
 // Dynamic styles that depend on screen dimensions
-export const createSkeletonStyles = (dimensions: ScreenDimensions) => {
+export const createSkeletonStyles = (dimensions: ScreenDimensions): SkeletonStyles => {
     const { width } = dimensions;
 
     return {

@@ -13,25 +13,18 @@ import Animated, {
     interpolate
 } from 'react-native-reanimated';
 import { NFT, GridColumns, ViewMode } from '../../types/nft';
+import { NFTCardProps } from '../../types/components';
 import { useScreenDimensions } from '../../hooks/useScreenDimensions';
 import { convertIpfsToHttp, isJsonMetadataUrl, getPlaceholderImage, getBestImageUrl } from '../../utils/helpers';
 import { calculateCardWidth, calculateCardHeight } from '../../utils/metrics';
 import styles from './styles';
-
-interface NFTCardProps {
-    nft: NFT;
-    onPress: (nft: NFT) => void;
-    columns: GridColumns;
-    viewMode: ViewMode;
-    index: number;
-    style?: object;
-}
 
 const NFTCard: React.FC<NFTCardProps> = ({
     nft,
     onPress,
     columns,
     viewMode,
+    index,
     style = {}
 }) => {
     const { width: SCREEN_WIDTH } = useScreenDimensions();
