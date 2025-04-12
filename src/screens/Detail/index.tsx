@@ -1,11 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
     View,
     Text,
     StyleSheet,
     Image,
     TouchableOpacity,
-    Dimensions,
     StatusBar,
     Share,
     ActivityIndicator
@@ -24,13 +23,12 @@ import { Ionicons } from '@expo/vector-icons';
 import { RootStackParamList } from '../../navigation';
 import { NFT } from '../../types/nft';
 import { fetchNFTs } from '../../api/nft-service';
+import { useScreenDimensions } from '../../hooks/useScreenDimensions';
 
 type DetailScreenRouteProp = RouteProp<RootStackParamList, 'Detail'>;
 type DetailScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Detail'>;
 
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const HEADER_HEIGHT = 60;
-const IMAGE_HEIGHT = SCREEN_HEIGHT * 0.5;
 
 // Function to convert IPFS URL to HTTP URL if needed
 const convertIpfsToHttp = (ipfsUrl: string): string => {
@@ -42,6 +40,19 @@ const convertIpfsToHttp = (ipfsUrl: string): string => {
 };
 
 const DetailScreen = () => {
+    const dimensions = useScreenDimensions();
+    const { width: screenWidth, height: screenHeight } = dimensions;
+    const imageHeight = screenHeight * 0.5;
+
+    // Create derived styles based on dimensions
+    const derivedStyles = useMemo(() => ({
+        imageContainer: {
+            width: screenWidth,
+            height: imageHeight,
+            backgroundColor: '#f0f0f0',
+        },
+    }), [screenWidth, imageHeight]);
+
     const navigation = useNavigation<DetailScreenNavigationProp>();
     const route = useRoute<DetailScreenRouteProp>();
     const { nftId } = route.params;
@@ -159,8 +170,8 @@ const DetailScreen = () => {
                 {
                     translateY: interpolate(
                         scrollY.value,
-                        [0, IMAGE_HEIGHT],
-                        [0, -IMAGE_HEIGHT / 2],
+                        [0, imageHeight],
+                        [0, -imageHeight / 2],
                         'clamp'
                     ),
                 },
@@ -222,6 +233,19 @@ const DetailScreen = () => {
         }
     };
 
+    // Fix for headerOpacity.value interpolate
+    const handleScroll = (offsetY: number) => {
+        scrollY.value = offsetY;
+
+        // Fade out header when scrolling down
+        headerOpacity.value = interpolate(
+            offsetY,
+            [0, HEADER_HEIGHT],
+            [1, 0],
+            'clamp'
+        );
+    };
+
     if (isLoading) {
         return (
             <View style={styles.loadingContainer}>
@@ -269,22 +293,14 @@ const DetailScreen = () => {
                 style={styles.scrollView}
                 contentContainerStyle={styles.scrollViewContent}
                 onScroll={(event) => {
-                    scrollY.value = event.nativeEvent.contentOffset.y;
-
-                    // Fade out header when scrolling down
-                    headerOpacity.value = interpolate(
-                        scrollY.value,
-                        [0, HEADER_HEIGHT],
-                        [1, 0],
-                        'clamp'
-                    );
+                    handleScroll(event.nativeEvent.contentOffset.y);
                 }}
                 scrollEventThrottle={16}
                 showsVerticalScrollIndicator={false}
             >
                 {/* Hero Image */}
                 <TouchableOpacity activeOpacity={0.9} onPress={handleImagePress}>
-                    <Animated.View style={[styles.imageContainer, imageAnimatedStyle]}>
+                    <Animated.View style={[derivedStyles.imageContainer, imageAnimatedStyle]}>
                         <Image
                             source={{ uri: displayImageUrl }}
                             style={styles.image}
@@ -429,11 +445,6 @@ const styles = StyleSheet.create({
     },
     scrollViewContent: {
         paddingTop: 0,
-    },
-    imageContainer: {
-        width: SCREEN_WIDTH,
-        height: IMAGE_HEIGHT,
-        backgroundColor: '#f0f0f0',
     },
     image: {
         width: '100%',

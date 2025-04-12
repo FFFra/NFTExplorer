@@ -1,6 +1,6 @@
 // src/components/LoadingStates/NFTSkeleton.tsx
-import React, { useEffect } from 'react';
-import { View, StyleSheet, Dimensions } from 'react-native';
+import React, { useEffect, useMemo } from 'react';
+import { View } from 'react-native';
 import Animated, {
     useSharedValue,
     useAnimatedStyle,
@@ -8,18 +8,24 @@ import Animated, {
     withTiming,
     Easing,
 } from 'react-native-reanimated';
-import styles from './styles';
+import styles, { createSkeletonStyles } from './styles';
 import { ViewMode, GridColumns } from '../../types/nft';
+import { useScreenDimensions } from '../../hooks/useScreenDimensions';
 
 interface SkeletonProps {
     viewMode: ViewMode;
     columns: GridColumns;
 }
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
-
 const NFTSkeleton: React.FC<SkeletonProps> = ({ viewMode, columns }) => {
+    const dimensions = useScreenDimensions();
+    const { width: SCREEN_WIDTH } = dimensions;
     const shimmer = useSharedValue(0);
+
+    // Create dimension-dependent styles
+    const dynamicStyles = useMemo(() =>
+        createSkeletonStyles(dimensions),
+        [dimensions]);
 
     // Calculate dimensions based on column count and view mode
     const getCardWidth = () => {
@@ -59,11 +65,14 @@ const NFTSkeleton: React.FC<SkeletonProps> = ({ viewMode, columns }) => {
                     style={[
                         styles.container,
                         styles.listContainer,
-                        { width: cardWidth, height: cardHeight },
+                        dynamicStyles.dynamicCardContainer(cardWidth, cardHeight),
                         animatedStyle
                     ]}
                 >
-                    <View style={[styles.mediaSkeleton, { width: cardHeight, height: cardHeight }]} />
+                    <View style={[
+                        styles.mediaSkeleton,
+                        dynamicStyles.dynamicMediaSkeleton(cardHeight)
+                    ]} />
                     <View style={styles.listInfoSkeleton}>
                         <View style={styles.titleSkeleton} />
                         <View style={styles.collectionSkeleton} />
@@ -78,11 +87,14 @@ const NFTSkeleton: React.FC<SkeletonProps> = ({ viewMode, columns }) => {
                 style={[
                     styles.container,
                     styles.gridContainer,
-                    { width: cardWidth, height: cardHeight + 60 },
+                    dynamicStyles.dynamicCardContainer(cardWidth, cardHeight + 60),
                     animatedStyle
                 ]}
             >
-                <View style={[styles.mediaSkeleton, { width: cardWidth, height: cardHeight }]} />
+                <View style={[
+                    styles.mediaSkeleton,
+                    dynamicStyles.dynamicMediaSkeleton(cardWidth)
+                ]} />
                 <View style={styles.gridInfoSkeleton}>
                     <View style={styles.titleSkeleton} />
                     <View style={styles.collectionSkeleton} />

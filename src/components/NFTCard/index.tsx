@@ -4,10 +4,7 @@ import {
     Text,
     Image,
     TouchableOpacity,
-    Dimensions,
     ActivityIndicator,
-    StyleSheet,
-    Platform
 } from 'react-native';
 import Animated, {
     useSharedValue,
@@ -16,7 +13,11 @@ import Animated, {
     interpolate
 } from 'react-native-reanimated';
 import { NFT, GridColumns, ViewMode } from '../../types/nft';
+import { useScreenDimensions } from '../../hooks/useScreenDimensions';
+import { convertIpfsToHttp, isJsonMetadataUrl, getPlaceholderImage, getBestImageUrl } from '../../utils/helpers';
+import { calculateCardWidth, calculateCardHeight } from '../../utils/metrics';
 import styles from './styles';
+
 interface NFTCardProps {
     nft: NFT;
     onPress: (nft: NFT) => void;
@@ -26,33 +27,14 @@ interface NFTCardProps {
     style?: object;
 }
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
-
-const convertIpfsToHttp = (ipfsUrl: string): string => {
-    if (ipfsUrl.startsWith('ipfs://')) {
-        return ipfsUrl.replace('ipfs://', 'https://ipfs.io/ipfs/');
-    }
-    return ipfsUrl;
-};
-
-// Function to check if a URL is a JSON metadata URL
-const isJsonMetadataUrl = (url: string): boolean => {
-    return url.endsWith('.json');
-};
-
-// Function to get a placeholder image when all else fails
-const getPlaceholderImage = (id: string): string => {
-    return `https://picsum.photos/400/400?random=${id.replace(/[^0-9]/g, '')}`;
-};
-
 const NFTCard: React.FC<NFTCardProps> = ({
     nft,
     onPress,
     columns,
     viewMode,
-    index,
     style = {}
 }) => {
+    const { width: SCREEN_WIDTH } = useScreenDimensions();
     const [isLoading, setIsLoading] = useState(true);
     const [hasError, setHasError] = useState(false);
     const [actualImageUrl, setActualImageUrl] = useState<string | null>(null);
@@ -61,31 +43,16 @@ const NFTCard: React.FC<NFTCardProps> = ({
     const scale = useSharedValue(1);
     const opacity = useSharedValue(0);
 
-    // Calculate dimensions based on column count and view mode
-    const getCardWidth = () => {
-        if (viewMode === 'list') {
-            return SCREEN_WIDTH - 32; // Full width minus padding
-        }
-
-        // Calculate width based on container padding and number of columns
-        const containerPadding = 32; // Total container padding (16px on each side)
-        const cardSpacing = 12; // Spacing between cards (6px on each side)
-        const totalSpacing = cardSpacing * (columns - 1); // Total spacing between cards
-
-        // Calculate available width and divide by number of columns
-        const availableWidth = SCREEN_WIDTH - containerPadding - totalSpacing;
-        return Math.floor(availableWidth / columns);
-    };
-
-    const cardWidth = getCardWidth();
-    const cardHeight = viewMode === 'list' ? 120 : cardWidth;
+    // Calculate card dimensions using utility functions
+    const cardWidth = calculateCardWidth(SCREEN_WIDTH, columns, viewMode);
+    const cardHeight = calculateCardHeight(cardWidth, viewMode);
 
     // Fetch metadata and extract image URL if needed
     useEffect(() => {
         const fetchMetadata = async () => {
             try {
                 // Use the best available URL
-                const sourceUrl = nft.imageUrl || nft.thumbnailUrl || nft.mediaUrl;
+                const sourceUrl = getBestImageUrl(nft);
 
                 if (!sourceUrl) {
                     setActualImageUrl(getPlaceholderImage(nft.id));
@@ -206,11 +173,7 @@ const NFTCard: React.FC<NFTCardProps> = ({
         }
 
         // Use the actual image URL we got from metadata, or fallback to a placeholder
-        const imageSource = actualImageUrl ||
-            nft.imageUrl ||
-            nft.thumbnailUrl ||
-            nft.mediaUrl ||
-            `https://picsum.photos/400/400?random=${nft.id.replace(/[^0-9]/g, '')}`;
+        const imageSource = actualImageUrl || getBestImageUrl(nft);
 
         return (
             <View style={[styles.mediaContainer, { width: cardWidth, height: cardHeight }]}>

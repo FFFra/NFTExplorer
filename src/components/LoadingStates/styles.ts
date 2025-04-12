@@ -1,5 +1,23 @@
 import { StyleSheet } from 'react-native';
+import { ScreenDimensions } from '../../hooks/useScreenDimensions';
 
+// Dynamic styles that depend on screen dimensions
+export const createSkeletonStyles = (dimensions: ScreenDimensions) => {
+    const { width } = dimensions;
+
+    return {
+        dynamicCardContainer: (cardWidth: number, cardHeight: number) => ({
+            width: cardWidth,
+            height: cardHeight,
+        }),
+        dynamicMediaSkeleton: (size: number) => ({
+            width: size,
+            height: size,
+        }),
+    };
+};
+
+// Static styles that don't change with dimensions
 const styles = StyleSheet.create({
     skeletonContainer: {
         flexDirection: 'row',
@@ -8,41 +26,44 @@ const styles = StyleSheet.create({
         padding: 8,
     },
     container: {
-        margin: 8,
+        backgroundColor: '#f5f5f5',
         borderRadius: 12,
         overflow: 'hidden',
-        backgroundColor: '#f0f0f0',
+        margin: 6,
     },
     gridContainer: {
-        flexDirection: 'column',
+        marginBottom: 16,
     },
     listContainer: {
         flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 12,
     },
     mediaSkeleton: {
         backgroundColor: '#e0e0e0',
+        borderRadius: 8,
     },
     gridInfoSkeleton: {
         padding: 12,
-
     },
     listInfoSkeleton: {
         flex: 1,
-        padding: 12,
+        paddingHorizontal: 12,
+        height: '100%',
         justifyContent: 'center',
     },
     titleSkeleton: {
-        height: 14,
-        width: '80%',
+        height: 18,
         backgroundColor: '#e0e0e0',
         borderRadius: 4,
         marginBottom: 8,
+        width: '80%',
     },
     collectionSkeleton: {
-        height: 12,
-        width: '50%',
+        height: 14,
         backgroundColor: '#e0e0e0',
         borderRadius: 4,
+        width: '50%',
     }
 });
 

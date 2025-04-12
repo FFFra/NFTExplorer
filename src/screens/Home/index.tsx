@@ -8,7 +8,6 @@ import {
     FlatList,
     TouchableOpacity,
     RefreshControl,
-    Dimensions,
     StatusBar,
     Platform
 } from 'react-native';
@@ -28,17 +27,17 @@ import { NFT, ViewMode, GridColumns } from '../../types/nft';
 import NFTCard from '../../components/NFTCard';
 import NFTSkeleton from '../../components/LoadingStates/index';
 import { fetchNFTs } from '../../api/nft-service';
+import { useScreenDimensions } from '../../hooks/useScreenDimensions';
 
 import { Ionicons } from '@expo/vector-icons'; // Make sure to install expo/vector-icons
 
 type HomeScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Main'>;
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
-
 // Create a properly typed AnimatedFlatList
 const AnimatedFlatList = Animated.createAnimatedComponent(FlatList<NFT>);
 
 const HomeScreen = () => {
+    const { width: SCREEN_WIDTH } = useScreenDimensions();
     const navigation = useNavigation<HomeScreenNavigationProp>();
     const [nfts, setNfts] = useState<NFT[]>([]);
     const [loading, setLoading] = useState<boolean>(true);
