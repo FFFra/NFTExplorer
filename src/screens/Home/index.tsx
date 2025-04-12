@@ -196,13 +196,16 @@ const HomeScreen = () => {
         };
     });
 
-    // Add this debug helper for rendering NFT items
+    // Updated renderNFTItem to apply correct margins for different column configurations
     const renderNFTItem = ({ item, index }: { item: NFT; index: number }) => {
-        console.warn(`Rendering NFT at index ${index}:`, {
-            id: item.id,
-            name: item.name,
-            hasImageUrl: !!item.thumbnailUrl || !!item.mediaUrl
-        });
+        // Add spacing style for grid mode only
+        const itemStyle = viewMode === 'grid' && columns > 1
+            ? {
+                // Add equal spacing between cards
+                marginLeft: index % columns === 0 ? 0 : 6,  // No left margin for first card in row
+                marginRight: (index + 1) % columns === 0 ? 0 : 6, // No right margin for last card in row
+            }
+            : {}; // No extra styling for list mode
 
         return (
             <NFTCard
@@ -211,6 +214,7 @@ const HomeScreen = () => {
                 columns={columns}
                 viewMode={viewMode}
                 index={index}
+                style={itemStyle}
             />
         );
     };
@@ -289,7 +293,11 @@ const HomeScreen = () => {
                     numColumns={viewMode === 'grid' ? columns : 1}
                     key={`${viewMode}-${columns}`} // Force re-render when changing layout
                     contentContainerStyle={styles.listContent}
-                    columnWrapperStyle={viewMode === 'grid' && columns > 1 ? { justifyContent: 'space-evenly' } : undefined}
+                    columnWrapperStyle={
+                        viewMode === 'grid' && columns > 1
+                            ? { justifyContent: 'space-evenly' }
+                            : undefined
+                    }
                     showsVerticalScrollIndicator={false}
                     refreshControl={
                         <RefreshControl
@@ -364,8 +372,8 @@ const styles = StyleSheet.create({
         flex: 1,
     },
     listContent: {
-        padding: 8,
-        paddingBottom: 80, // Add padding for tab bar
+        padding: 16, // Use consistent padding on all sides
+        paddingBottom: 80, // Add extra padding for tab bar
     },
     errorContainer: {
         flex: 1,

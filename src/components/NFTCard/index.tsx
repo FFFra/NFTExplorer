@@ -23,6 +23,7 @@ interface NFTCardProps {
     columns: GridColumns;
     viewMode: ViewMode;
     index: number;
+    style?: object;
 }
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -49,7 +50,8 @@ const NFTCard: React.FC<NFTCardProps> = ({
     onPress,
     columns,
     viewMode,
-    index
+    index,
+    style = {}
 }) => {
     const [isLoading, setIsLoading] = useState(true);
     const [hasError, setHasError] = useState(false);
@@ -65,10 +67,13 @@ const NFTCard: React.FC<NFTCardProps> = ({
             return SCREEN_WIDTH - 32; // Full width minus padding
         }
 
-        // Simple, reliable approach for grid mode
-        const gap = 8;
-        const padding = 16; // Padding on screen edges (8px on each side)
-        const availableWidth = SCREEN_WIDTH - padding - (gap * (columns - 1));
+        // Calculate width based on container padding and number of columns
+        const containerPadding = 32; // Total container padding (16px on each side)
+        const cardSpacing = 12; // Spacing between cards (6px on each side)
+        const totalSpacing = cardSpacing * (columns - 1); // Total spacing between cards
+
+        // Calculate available width and divide by number of columns
+        const availableWidth = SCREEN_WIDTH - containerPadding - totalSpacing;
         return Math.floor(availableWidth / columns);
     };
 
@@ -246,7 +251,8 @@ const NFTCard: React.FC<NFTCardProps> = ({
                 styles.container,
                 { width: cardWidth },
                 cardAnimatedStyle,
-                entryAnimatedStyle
+                entryAnimatedStyle,
+                style
             ]}
         >
             <TouchableOpacity
@@ -269,7 +275,8 @@ const NFTCard: React.FC<NFTCardProps> = ({
 
 const styles = StyleSheet.create({
     container: {
-        margin: 6,
+        marginVertical: 6, // Consistent vertical spacing
+        marginHorizontal: 0, // No horizontal margin - spacing handled by FlatList
         backgroundColor: '#ffffff',
         borderRadius: 12,
         overflow: 'hidden',
