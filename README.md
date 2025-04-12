@@ -6,6 +6,10 @@ A modern mobile application built with React Native and Expo that allows users t
   <img src="https://i.imgur.com/YourNFTExplorerDemoGif.gif" alt="NFT Explorer Demo" width="300" />
 </p>
 
+## Design
+
+https://github.com/user-attachments/assets/0519acdb-d855-440c-84ba-c321feacc3a6
+
 ## Features
 
 - **Stunning UI**: Beautiful, responsive, and modern user interface with smooth animations
