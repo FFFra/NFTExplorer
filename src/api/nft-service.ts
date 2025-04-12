@@ -1,91 +1,9 @@
 import axios from 'axios';
 import { NFTsResponse, NFT } from '../types/nft';
+import { convertIpfsToHttp, getPlaceholderImageWithIndex } from '../utils/helpers';
 
-// Updated to the correct Avalanche address
 const BASE_URL = 'https://glacier-api.avax.network/v1/chains/43114';
 const ADDRESS = '0x69155e7ca2e688ccdc247f6c4ddf374b3ae77bd6';
-
-// Function to convert IPFS URL to HTTP URL
-const convertIpfsToHttp = (ipfsUrl: string): string => {
-    if (!ipfsUrl) return '';
-    if (ipfsUrl.startsWith('ipfs://')) {
-        return ipfsUrl.replace('ipfs://', 'https://ipfs.io/ipfs/');
-    }
-    return ipfsUrl;
-};
-
-// Function to generate a placeholder image
-const getPlaceholderImage = (index?: number): string => {
-    const random = index !== undefined ? index % 10 : Math.floor(Math.random() * 10);
-    return `https://picsum.photos/400/400?random=${random}`;
-};
-
-// Mock NFT data to use as fallback when API returns empty results
-const MOCK_NFTS: NFT[] = [
-    {
-        id: 'mock-1',
-        contractAddress: '0x8f12d7b9335e460ad8f5e3b47abe89f36f59953f',
-        tokenId: '1',
-        name: 'Awesome NFT #1',
-        description: 'This is a beautiful mock NFT for testing',
-        mediaType: 'image/jpeg',
-        mediaUrl: 'https://picsum.photos/400/400?random=1',
-        thumbnailUrl: 'https://picsum.photos/200/200?random=1',
-        imageUrl: 'https://picsum.photos/400/400?random=1',
-        price: 0.5,
-        owner: 'Anonymous',
-        createdAt: new Date().toISOString(),
-        creator: 'Mock Creator',
-        collection: {
-            name: 'Mock Collection',
-            description: 'A collection of mock NFTs',
-            imageUrl: 'https://picsum.photos/100/100?random=1'
-        },
-        metadata: {}
-    },
-    {
-        id: 'mock-2',
-        contractAddress: '0x8f12d7b9335e460ad8f5e3b47abe89f36f59953f',
-        tokenId: '2',
-        name: 'Gorgeous NFT #2',
-        description: 'Another beautiful mock NFT for testing',
-        mediaType: 'image/jpeg',
-        mediaUrl: 'https://picsum.photos/400/400?random=2',
-        thumbnailUrl: 'https://picsum.photos/200/200?random=2',
-        imageUrl: 'https://picsum.photos/400/400?random=2',
-        price: 1.2,
-        owner: 'Anonymous',
-        createdAt: new Date().toISOString(),
-        creator: 'Mock Creator',
-        collection: {
-            name: 'Mock Collection',
-            description: 'A collection of mock NFTs',
-            imageUrl: 'https://picsum.photos/100/100?random=2'
-        },
-        metadata: {}
-    },
-    {
-        id: 'mock-3',
-        contractAddress: '0x8f12d7b9335e460ad8f5e3b47abe89f36f59953f',
-        tokenId: '3',
-        name: 'Stunning NFT #3',
-        description: 'Yet another beautiful mock NFT for testing',
-        mediaType: 'image/jpeg',
-        mediaUrl: 'https://picsum.photos/400/400?random=3',
-        thumbnailUrl: 'https://picsum.photos/200/200?random=3',
-        imageUrl: 'https://picsum.photos/400/400?random=3',
-        price: 2.0,
-        owner: 'Anonymous',
-        createdAt: new Date().toISOString(),
-        creator: 'Mock Creator',
-        collection: {
-            name: 'Mock Collection',
-            description: 'A collection of mock NFTs',
-            imageUrl: 'https://picsum.photos/100/100?random=3'
-        },
-        metadata: {}
-    }
-];
 
 export const fetchNFTs = async (pageSize = 10, pageToken?: string): Promise<NFTsResponse> => {
     try {
@@ -102,19 +20,14 @@ export const fetchNFTs = async (pageSize = 10, pageToken?: string): Promise<NFTs
         const apiCollectibles = response.data.collectibleBalances;
 
         if (!apiCollectibles || apiCollectibles.length === 0) {
-            // Return mock data
-            const page = pageToken ? parseInt(pageToken, 10) : 1;
-            const startIdx = (page - 1) * pageSize;
-            const endIdx = Math.min(startIdx + pageSize, MOCK_NFTS.length);
-            const paginatedMockNFTs = MOCK_NFTS.slice(startIdx, endIdx);
-
+            // Return empty response
             return {
-                collectibles: paginatedMockNFTs,
-                nextPageToken: endIdx < MOCK_NFTS.length ? String(page + 1) : undefined,
-                total: MOCK_NFTS.length,
-                page: page,
+                collectibles: [],
+                nextPageToken: undefined,
+                total: 0,
+                page: 1,
                 limit: pageSize,
-                hasMore: endIdx < MOCK_NFTS.length
+                hasMore: false
             };
         }
 
@@ -153,7 +66,7 @@ export const fetchNFTs = async (pageSize = 10, pageToken?: string): Promise<NFTs
 
                 // If we still don't have an image URL, use a placeholder
                 if (!imageUrl) {
-                    imageUrl = getPlaceholderImage(index);
+                    imageUrl = getPlaceholderImageWithIndex(index);
                 }
 
                 return {
@@ -170,7 +83,7 @@ export const fetchNFTs = async (pageSize = 10, pageToken?: string): Promise<NFTs
                     collection: {
                         name: item.name || 'Unknown Collection',
                         description: metadata.description || '',
-                        imageUrl: metadata.image ? convertIpfsToHttp(metadata.image) : getPlaceholderImage(index)
+                        imageUrl: metadata.image ? convertIpfsToHttp(metadata.image) : getPlaceholderImageWithIndex(index)
                     },
                     metadata: metadata,
                     price: metadata.price || 0,
@@ -186,14 +99,14 @@ export const fetchNFTs = async (pageSize = 10, pageToken?: string): Promise<NFTs
                     name: item.name || `NFT #${item.tokenId}`,
                     description: '',
                     mediaType: 'image/jpeg',
-                    mediaUrl: getPlaceholderImage(index),
-                    thumbnailUrl: getPlaceholderImage(index),
-                    imageUrl: getPlaceholderImage(index),
+                    mediaUrl: getPlaceholderImageWithIndex(index),
+                    thumbnailUrl: getPlaceholderImageWithIndex(index),
+                    imageUrl: getPlaceholderImageWithIndex(index),
                     creator: 'Unknown',
                     collection: {
                         name: 'Unknown Collection',
                         description: '',
-                        imageUrl: getPlaceholderImage(index)
+                        imageUrl: getPlaceholderImageWithIndex(index)
                     },
                     metadata: {},
                     price: 0,
@@ -220,18 +133,14 @@ export const fetchNFTs = async (pageSize = 10, pageToken?: string): Promise<NFTs
             });
         }
 
-        // Return mock data on error
+        // Return empty response on error
         return {
-            collectibles: MOCK_NFTS,
+            collectibles: [],
             nextPageToken: undefined,
-            total: MOCK_NFTS.length,
+            total: 0,
             page: 1,
             limit: pageSize,
             hasMore: false
         };
     }
-};
-
-export const isVideoMedia = (mediaType: string): boolean => {
-    return mediaType.includes('video') || mediaType.includes('mp4');
 };

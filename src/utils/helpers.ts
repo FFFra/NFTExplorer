@@ -8,6 +8,7 @@
  * @returns The converted HTTP URL
  */
 export const convertIpfsToHttp = (ipfsUrl: string): string => {
+    if (!ipfsUrl) return '';
     if (ipfsUrl.startsWith('ipfs://')) {
         return ipfsUrl.replace('ipfs://', 'https://ipfs.io/ipfs/');
     }
@@ -33,6 +34,16 @@ export const getPlaceholderImage = (id: string): string => {
 };
 
 /**
+ * Gets a placeholder image using an index number
+ * @param index - Optional index to use for random seed
+ * @returns A URL to a placeholder image
+ */
+export const getPlaceholderImageWithIndex = (index?: number): string => {
+    const random = index !== undefined ? index % 10 : Math.floor(Math.random() * 10);
+    return `https://picsum.photos/400/400?random=${random}`;
+};
+
+/**
  * Selects the best image URL from an NFT object
  * @param nft - The NFT object containing various image URLs
  * @returns The best available image URL
@@ -52,4 +63,13 @@ export const formatAddress = (address?: string, startChars = 6, endChars = 4): s
     if (!address) return 'Unknown';
     if (address.length <= startChars + endChars) return address;
     return `${address.slice(0, startChars)}...${address.slice(-endChars)}`;
+};
+
+/**
+ * Checks if a media type is a video format
+ * @param mediaType - The media type/mime type to check
+ * @returns Boolean indicating if the media is a video
+ */
+export const isVideoMedia = (mediaType: string): boolean => {
+    return mediaType.includes('video') || mediaType.includes('mp4');
 };
