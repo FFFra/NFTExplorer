@@ -1,9 +1,25 @@
 import axios from 'axios';
 import { NFTsResponse, NFT } from '../types/nft';
 
-// Updated to a verified working collection address 
+// Updated to the correct Avalanche address
 const BASE_URL = 'https://glacier-api.avax.network/v1/chains/43114';
 const ADDRESS = '0x69155e7ca2e688ccdc247f6c4ddf374b3ae77bd6';
+
+// Function to convert IPFS URL to HTTP URL
+const convertIpfsToHttp = (ipfsUrl: string): string => {
+    if (!ipfsUrl) return '';
+    if (ipfsUrl.startsWith('ipfs://')) {
+        return ipfsUrl.replace('ipfs://', 'https://ipfs.io/ipfs/');
+    }
+    return ipfsUrl;
+};
+
+// Function to generate a placeholder image
+const getPlaceholderImage = (index?: number): string => {
+    const random = index !== undefined ? index % 10 : Math.floor(Math.random() * 10);
+    return `https://picsum.photos/400/400?random=${random}`;
+};
+
 // Mock NFT data to use as fallback when API returns empty results
 const MOCK_NFTS: NFT[] = [
     {
@@ -72,22 +88,26 @@ const MOCK_NFTS: NFT[] = [
 ];
 
 export const fetchNFTs = async (pageSize = 10, pageToken?: string): Promise<NFTsResponse> => {
+    console.warn('fetchNFTs called with pageSize:', pageSize, 'pageToken:', pageToken);
     try {
+        // Construct the endpoint
         const endpoint = `${BASE_URL}/addresses/${ADDRESS}/balances:listCollectibles`;
         const params = {
             pageSize,
             ...(pageToken && { pageToken })
         };
 
+        console.warn('Fetching from endpoint:', endpoint, 'with params:', params);
         const response = await axios.get(endpoint, { params });
-        console.log('API Response:', response.data);
+        console.warn('API Response status:', response.status);
+        console.warn('API Response data structure:', Object.keys(response.data));
 
-        // Ensure the response has the expected structure
+        // Check if response has collectibleBalances
         const apiCollectibles = response.data.collectibleBalances;
 
         if (!apiCollectibles || apiCollectibles.length === 0) {
             console.warn('No NFTs found in API response, using mock data instead');
-            // Return mock data if API returns empty results
+            // Return mock data
             const page = pageToken ? parseInt(pageToken, 10) : 1;
             const startIdx = (page - 1) * pageSize;
             const endIdx = Math.min(startIdx + pageSize, MOCK_NFTS.length);
@@ -103,39 +123,101 @@ export const fetchNFTs = async (pageSize = 10, pageToken?: string): Promise<NFTs
             };
         }
 
-        // Function to convert IPFS URL to HTTP URL
-        const convertIpfsToHttp = (ipfsUrl: string): string => {
-            if (ipfsUrl.startsWith('ipfs://')) {
-                return ipfsUrl.replace('ipfs://', 'https://ipfs.io/ipfs/');
-            }
-            return ipfsUrl;
-        };
+        console.warn(`Found ${apiCollectibles.length} NFTs in the response`);
+
+        // Print a sample collectible for debugging
+        if (apiCollectibles.length > 0) {
+            console.warn('Sample collectible:', JSON.stringify(apiCollectibles[0], null, 2));
+        }
 
         // Transform the API response to match our types
-        const transformedCollectibles: NFT[] = apiCollectibles.map((item: any) => {
-            const imageUrl = convertIpfsToHttp(item.tokenUri || getPlaceholderImage());
-            return {
-                id: `${item.address}-${item.tokenId}`,
-                contractAddress: item.address,
-                tokenId: item.tokenId,
-                name: item.name || `NFT #${item.tokenId}`,
-                description: item.metadata?.description || '',
-                mediaType: item.metadata?.mediaType || 'image/jpeg',
-                mediaUrl: convertIpfsToHttp(item.tokenUri || ''),
-                thumbnailUrl: convertIpfsToHttp(item.tokenUri || ''),
-                creator: item.metadata?.creator || 'Unknown',
-                collection: {
-                    name: item.name || 'Unknown Collection',
-                    description: item.metadata?.description || '',
-                    imageUrl: convertIpfsToHttp(item.metadata?.imageUrl || '')
-                },
-                metadata: item.metadata || {},
-                imageUrl: imageUrl,
-                price: 0,
-                owner: 'Unknown',
-                createdAt: new Date().toISOString()
-            };
-        });
+        const transformedCollectibles: NFT[] = await Promise.all(apiCollectibles.map(async (item: any, index: number) => {
+            try {
+                let metadata = item.metadata || {};
+                let imageUrl = '';
+                let name = item.name || `NFT #${item.tokenId}`;
+                let description = '';
+
+                // If this is a JSON URL, try to fetch the metadata
+                if (item.tokenUri && item.tokenUri.endsWith('.json')) {
+                    try {
+                        console.warn(`Fetching metadata for NFT ${item.tokenId} from ${item.tokenUri}`);
+                        const metadataResponse = await axios.get(convertIpfsToHttp(item.tokenUri));
+                        metadata = metadataResponse.data;
+
+                        if (metadata.image) {
+                            imageUrl = convertIpfsToHttp(metadata.image);
+                            console.warn(`Found image URL in metadata: ${imageUrl}`);
+                        }
+
+                        if (metadata.name) {
+                            name = metadata.name;
+                        }
+
+                        if (metadata.description) {
+                            description = metadata.description;
+                        }
+                    } catch (metadataError) {
+                        console.warn(`Error fetching metadata for NFT ${item.tokenId}:`, metadataError);
+                    }
+                } else if (item.tokenUri) {
+                    // The tokenUri itself might be the image URL
+                    imageUrl = convertIpfsToHttp(item.tokenUri);
+                }
+
+                // If we still don't have an image URL, use a placeholder
+                if (!imageUrl) {
+                    imageUrl = getPlaceholderImage(index);
+                    console.warn(`Using placeholder image for NFT ${item.tokenId}: ${imageUrl}`);
+                }
+
+                return {
+                    id: `${item.address}-${item.tokenId}`,
+                    contractAddress: item.address,
+                    tokenId: item.tokenId,
+                    name: name,
+                    description: description || metadata.description || '',
+                    mediaType: metadata.mediaType || 'image/jpeg',
+                    mediaUrl: imageUrl,
+                    thumbnailUrl: imageUrl,
+                    imageUrl: imageUrl,
+                    creator: metadata.creator || 'Unknown',
+                    collection: {
+                        name: item.name || 'Unknown Collection',
+                        description: metadata.description || '',
+                        imageUrl: metadata.image ? convertIpfsToHttp(metadata.image) : getPlaceholderImage(index)
+                    },
+                    metadata: metadata,
+                    price: metadata.price || 0,
+                    owner: metadata.owner || 'Unknown',
+                    createdAt: new Date().toISOString()
+                };
+            } catch (error) {
+                console.error(`Error transforming NFT ${item.tokenId}:`, error);
+                // Return a basic NFT with placeholder image if transformation fails
+                return {
+                    id: `${item.address}-${item.tokenId}`,
+                    contractAddress: item.address,
+                    tokenId: item.tokenId,
+                    name: item.name || `NFT #${item.tokenId}`,
+                    description: '',
+                    mediaType: 'image/jpeg',
+                    mediaUrl: getPlaceholderImage(index),
+                    thumbnailUrl: getPlaceholderImage(index),
+                    imageUrl: getPlaceholderImage(index),
+                    creator: 'Unknown',
+                    collection: {
+                        name: 'Unknown Collection',
+                        description: '',
+                        imageUrl: getPlaceholderImage(index)
+                    },
+                    metadata: {},
+                    price: 0,
+                    owner: 'Unknown',
+                    createdAt: new Date().toISOString()
+                };
+            }
+        }));
 
         return {
             collectibles: transformedCollectibles,
@@ -155,8 +237,7 @@ export const fetchNFTs = async (pageSize = 10, pageToken?: string): Promise<NFTs
             });
         }
 
-        // Return mock data on error too
-        console.warn('Error fetching NFTs, returning mock data as fallback');
+        // Return mock data on error
         return {
             collectibles: MOCK_NFTS,
             nextPageToken: undefined,
@@ -173,7 +254,7 @@ export const isVideoMedia = (mediaType: string): boolean => {
     return mediaType.includes('video') || mediaType.includes('mp4');
 };
 
-// Function to generate a placeholder if media URL is missing
-export const getPlaceholderImage = (): string => {
-    return 'https://via.placeholder.com/300x300?text=NFT';
-};
+// Function already defined at the top
+// export const getPlaceholderImage = (): string => {
+//     return 'https://via.placeholder.com/300x300?text=NFT';
+// };

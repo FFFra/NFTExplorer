@@ -81,7 +81,7 @@ const NFTCard: React.FC<NFTCardProps> = ({
 
                 if (!sourceUrl) {
                     console.warn(`No source URL available for NFT ${nft.id}`);
-                    setActualImageUrl(getPlaceholderImage());
+                    setActualImageUrl(`https://picsum.photos/400/400?random=${nft.id.replace(/\D/g, '')}`);
                     setIsLoading(false);
                     return;
                 }
@@ -89,27 +89,44 @@ const NFTCard: React.FC<NFTCardProps> = ({
                 // If the URL doesn't look like a JSON metadata file, use it directly
                 if (!isJsonMetadataUrl(sourceUrl)) {
                     setActualImageUrl(sourceUrl);
+                    setIsLoading(false);
                     return;
                 }
 
                 console.warn(`Fetching metadata for NFT ${nft.id} from ${sourceUrl}`);
-                const response = await fetch(sourceUrl);
-                const metadata = await response.json();
 
-                console.warn(`Metadata for NFT ${nft.id}:`, metadata);
+                // Use a timeout to prevent hanging requests
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
 
-                // Extract the image URL from the metadata
-                if (metadata && metadata.image) {
-                    const imageUrl = convertIpfsToHttp(metadata.image);
-                    console.warn(`Extracted image URL for NFT ${nft.id}: ${imageUrl}`);
-                    setActualImageUrl(imageUrl);
-                } else {
-                    console.warn(`No image found in metadata for NFT ${nft.id}`);
-                    setActualImageUrl(getPlaceholderImage());
+                try {
+                    const response = await fetch(sourceUrl, { signal: controller.signal });
+                    clearTimeout(timeoutId);
+
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+
+                    const metadata = await response.json();
+                    console.warn(`Metadata for NFT ${nft.id}:`, metadata);
+
+                    // Extract the image URL from the metadata
+                    if (metadata && metadata.image) {
+                        const imageUrl = convertIpfsToHttp(metadata.image);
+                        console.warn(`Extracted image URL for NFT ${nft.id}: ${imageUrl}`);
+                        setActualImageUrl(imageUrl);
+                    } else {
+                        console.warn(`No image found in metadata for NFT ${nft.id}`);
+                        setActualImageUrl(`https://picsum.photos/400/400?random=${nft.id.replace(/\D/g, '')}`);
+                    }
+                } catch (fetchError) {
+                    console.warn(`Error fetching metadata for NFT ${nft.id}:`, fetchError);
+                    setActualImageUrl(`https://picsum.photos/400/400?random=${nft.id.replace(/\D/g, '')}`);
+                    clearTimeout(timeoutId);
                 }
             } catch (error) {
-                console.error(`Error fetching metadata for NFT ${nft.id}:`, error);
-                setActualImageUrl(getPlaceholderImage());
+                console.error(`Error in metadata process for NFT ${nft.id}:`, error);
+                setActualImageUrl(`https://picsum.photos/400/400?random=${nft.id.replace(/\D/g, '')}`);
                 setHasError(true);
             } finally {
                 setIsLoading(false);
@@ -129,7 +146,7 @@ const NFTCard: React.FC<NFTCardProps> = ({
     };
 
     // Animation for appearing when loaded
-    React.useEffect(() => {
+    useEffect(() => {
         opacity.value = withSpring(1, { damping: 20 });
     }, []);
 
@@ -161,8 +178,24 @@ const NFTCard: React.FC<NFTCardProps> = ({
     };
 
     const handleError = () => {
-        console.warn(`Image load error for NFT ${nft.id}:`, actualImageUrl);
-        setHasError(true);
+        console.warn(`Image load error for NFT ${nft.id}, URL: ${actualImageUrl}`);
+
+        // Try to use a different URL if the current one failed
+        if (actualImageUrl && (actualImageUrl === nft.imageUrl || actualImageUrl === nft.thumbnailUrl)) {
+            // If the primary URL failed, try a different one from the NFT
+            const alternateUrl = nft.mediaUrl || nft.thumbnailUrl || nft.imageUrl;
+            if (alternateUrl && alternateUrl !== actualImageUrl) {
+                console.warn(`Trying alternate URL for NFT ${nft.id}: ${alternateUrl}`);
+                setActualImageUrl(alternateUrl);
+                return; // Don't mark as error yet, we're trying another URL
+            }
+        }
+
+        // If we've tried all URLs or don't have alternatives, use a secure placeholder
+        const fallbackUrl = `https://picsum.photos/400/400?random=${nft.id.replace(/[^0-9]/g, '')}`;
+        console.warn(`Using fallback image for NFT ${nft.id}: ${fallbackUrl}`);
+        setActualImageUrl(fallbackUrl);
+        setHasError(false); // We're not in an error state since we're using a placeholder
         setIsLoading(false);
     };
 
@@ -171,22 +204,18 @@ const NFTCard: React.FC<NFTCardProps> = ({
         if (isLoading && !actualImageUrl) {
             return (
                 <View style={[styles.mediaContainer, { width: cardWidth, height: cardHeight }]}>
-                    <ActivityIndicator size="small" color="#3498db" />
-                </View>
-            );
-        }
-
-        // Show error state if there was an error
-        if (hasError) {
-            return (
-                <View style={[styles.mediaContainer, { width: cardWidth, height: cardHeight }]}>
-                    <Text style={styles.errorText}>Failed to load image</Text>
+                    <ActivityIndicator size="large" color="#3498db" />
+                    <Text style={styles.loadingText}>Loading NFT...</Text>
                 </View>
             );
         }
 
         // Use the actual image URL we got from metadata, or fallback to a placeholder
-        const imageSource = actualImageUrl || getPlaceholderImage();
+        const imageSource = actualImageUrl ||
+            nft.imageUrl ||
+            nft.thumbnailUrl ||
+            nft.mediaUrl ||
+            `https://picsum.photos/400/400?random=${nft.id.replace(/[^0-9]/g, '')}`;
 
         return (
             <View style={[styles.mediaContainer, { width: cardWidth, height: cardHeight }]}>
@@ -196,6 +225,8 @@ const NFTCard: React.FC<NFTCardProps> = ({
                     onLoadEnd={handleLoadEnd}
                     onError={handleError}
                     resizeMode="cover"
+                    // Adding key to force refresh when URL changes
+                    key={imageSource}
                 />
                 {isLoading && (
                     <View style={styles.loadingContainer}>
@@ -238,10 +269,13 @@ const styles = StyleSheet.create({
         margin: 4,
     },
     mediaContainer: {
-        backgroundColor: '#f0f0f0',
+        position: 'relative',
+        width: '100%',
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: '#f9f9f9',
         borderRadius: 12,
         overflow: 'hidden',
-        position: 'relative',
     },
     media: {
         width: '100%',
@@ -271,6 +305,11 @@ const styles = StyleSheet.create({
     price: {
         fontSize: 14,
         color: '#666',
+    },
+    loadingText: {
+        color: '#333',
+        fontSize: 14,
+        marginTop: 10,
     },
 });
 
