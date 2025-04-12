@@ -249,12 +249,6 @@ export const fetchNFTs = async (pageSize = 10, pageToken?: string): Promise<NFTs
     }
 };
 
-// Function to determine if media is video
 export const isVideoMedia = (mediaType: string): boolean => {
     return mediaType.includes('video') || mediaType.includes('mp4');
 };
-
-// Function already defined at the top
-// export const getPlaceholderImage = (): string => {
-//     return 'https://via.placeholder.com/300x300?text=NFT';
-// };

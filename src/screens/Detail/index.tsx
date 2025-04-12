@@ -4,14 +4,13 @@ import {
     Text,
     StyleSheet,
     Image,
-    ScrollView,
     TouchableOpacity,
     Dimensions,
     StatusBar,
     Share,
     ActivityIndicator
 } from 'react-native';
-import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
+import { useNavigation, useRoute, RouteProp, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Animated, {
     useSharedValue,
@@ -25,7 +24,7 @@ import Animated, {
 import { Ionicons } from '@expo/vector-icons';
 import { RootStackParamList } from '../../navigation';
 import { NFT } from '../../types/nft';
-import { getNFTById } from "../../services/nftService";
+import { fetchNFTs } from '../../api/nft-service';
 
 type DetailScreenRouteProp = RouteProp<RootStackParamList, 'Detail'>;
 type DetailScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Detail'>;
@@ -33,6 +32,15 @@ type DetailScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const HEADER_HEIGHT = 60;
 const IMAGE_HEIGHT = SCREEN_HEIGHT * 0.5;
+
+// Function to convert IPFS URL to HTTP URL if needed
+const convertIpfsToHttp = (ipfsUrl: string): string => {
+    if (!ipfsUrl) return '';
+    if (ipfsUrl.startsWith('ipfs://')) {
+        return ipfsUrl.replace('ipfs://', 'https://ipfs.io/ipfs/');
+    }
+    return ipfsUrl;
+};
 
 const DetailScreen = () => {
     const navigation = useNavigation<DetailScreenNavigationProp>();
@@ -42,6 +50,7 @@ const DetailScreen = () => {
     const [nft, setNft] = useState<NFT | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [imageUrlState, setImageUrlState] = useState<string | null>(null);
 
     // Animation values
     const scrollY = useSharedValue(0);
@@ -49,23 +58,71 @@ const DetailScreen = () => {
     const headerOpacity = useSharedValue(1);
     const contentOpacity = useSharedValue(0);
 
+    // Hide the default navigation header when this screen is focused
+    useFocusEffect(
+        React.useCallback(() => {
+            navigation.setOptions({
+                headerShown: false,
+                gestureEnabled: true,
+            });
+
+            // Cleanup when leaving the screen
+            return () => {
+                navigation.setOptions({
+                    headerShown: true,
+                });
+            };
+        }, [navigation])
+    );
+
     // Fetch NFT data
     useEffect(() => {
         const loadNFT = async () => {
             try {
                 setIsLoading(true);
-                // In a real app, you would fetch a single NFT by ID
-                // For now, we'll fetch all NFTs and find the one we need
-                const response = await fetchNFTs(20);
-                const foundNFT = response.collectibles.find(item => item.id === nftId);
+                console.warn(`Fetching details for NFT ID: ${nftId}`);
+
+                // Fetch all NFTs and find the one we need by ID
+                const response = await fetchNFTs(50);
+
+                const foundNFT = response.collectibles.find((item: NFT) => item.id === nftId);
 
                 if (foundNFT) {
+                    console.warn(`Found NFT: ${foundNFT.name}`);
                     setNft(foundNFT);
+
+                    // Check if the image URL is a JSON metadata URL
+                    if (
+                        foundNFT.imageUrl &&
+                        (foundNFT.imageUrl.endsWith('.json') || foundNFT.imageUrl.includes('/metadata/'))
+                    ) {
+                        try {
+                            // Fetch the metadata to get the actual image URL
+                            console.warn(`Fetching metadata from: ${foundNFT.imageUrl}`);
+                            const metadataResponse = await fetch(foundNFT.imageUrl);
+                            const metadata = await metadataResponse.json();
+
+                            if (metadata.image) {
+                                const imageUrl = convertIpfsToHttp(metadata.image);
+                                console.warn(`Found image URL in metadata: ${imageUrl}`);
+                                setImageUrlState(imageUrl);
+                            } else {
+                                setImageUrlState(foundNFT.imageUrl);
+                            }
+                        } catch (metadataError) {
+                            console.warn(`Error fetching metadata: ${metadataError}. Using original URL.`);
+                            setImageUrlState(foundNFT.imageUrl);
+                        }
+                    } else {
+                        setImageUrlState(foundNFT.imageUrl);
+                    }
+
                     // Start content animation after a short delay
                     setTimeout(() => {
                         contentOpacity.value = withTiming(1, { duration: 500 });
                     }, 300);
                 } else {
+                    console.warn(`NFT with ID ${nftId} not found in response`);
                     setError('NFT not found');
                 }
             } catch (err) {
@@ -77,7 +134,7 @@ const DetailScreen = () => {
         };
 
         loadNFT();
-    }, [nftId]);
+    }, [nftId, contentOpacity]);
 
     // Animated styles
     const headerAnimatedStyle = useAnimatedStyle(() => {
@@ -143,7 +200,7 @@ const DetailScreen = () => {
         try {
             await Share.share({
                 message: `Check out this NFT: ${nft.name} - ${nft.description}`,
-                url: nft.imageUrl,
+                url: imageUrlState || nft.imageUrl,
             });
         } catch (error) {
             console.error('Error sharing:', error);
@@ -157,10 +214,20 @@ const DetailScreen = () => {
         });
     };
 
+    // Handle image error by using a placeholder
+    const handleImageError = () => {
+        if (nft) {
+            const placeholderUrl = `https://picsum.photos/400/400?random=${nft.id.replace(/\D/g, '')}`;
+            console.warn(`Image load error, using placeholder: ${placeholderUrl}`);
+            setImageUrlState(placeholderUrl);
+        }
+    };
+
     if (isLoading) {
         return (
             <View style={styles.loadingContainer}>
                 <ActivityIndicator size="large" color="#3498db" />
+                <Text style={styles.loadingText}>Loading NFT details...</Text>
             </View>
         );
     }
@@ -176,11 +243,17 @@ const DetailScreen = () => {
         );
     }
 
+    const displayImageUrl = imageUrlState || nft.imageUrl || nft.thumbnailUrl || nft.mediaUrl || `https://picsum.photos/400/400?random=${nft.id.replace(/\D/g, '')}`;
+
     return (
         <View style={styles.container}>
-            <StatusBar barStyle="light-content" />
+            <StatusBar
+                barStyle="light-content"
+                backgroundColor="transparent"
+                translucent={true}
+            />
 
-            {/* Animated Header */}
+            {/* Animated Custom Header */}
             <Animated.View style={[styles.header, headerAnimatedStyle]}>
                 <TouchableOpacity style={styles.backButton} onPress={handleBack}>
                     <Ionicons name="arrow-back" size={24} color="#fff" />
@@ -195,6 +268,7 @@ const DetailScreen = () => {
 
             <Animated.ScrollView
                 style={styles.scrollView}
+                contentContainerStyle={styles.scrollViewContent}
                 onScroll={(event) => {
                     scrollY.value = event.nativeEvent.contentOffset.y;
 
@@ -212,7 +286,11 @@ const DetailScreen = () => {
                 {/* Hero Image */}
                 <TouchableOpacity activeOpacity={0.9} onPress={handleImagePress}>
                     <Animated.View style={[styles.imageContainer, imageAnimatedStyle]}>
-                        <Image source={{ uri: nft.imageUrl }} style={styles.image} />
+                        <Image
+                            source={{ uri: displayImageUrl }}
+                            style={styles.image}
+                            onError={handleImageError}
+                        />
                     </Animated.View>
                 </TouchableOpacity>
 
@@ -220,18 +298,28 @@ const DetailScreen = () => {
                 <Animated.View style={[styles.content, contentAnimatedStyle]}>
                     <View style={styles.titleContainer}>
                         <Text style={styles.title}>{nft.name}</Text>
-                        <Text style={styles.price}>{nft.price} ETH</Text>
+                        <Text style={styles.price}>{nft.price || 0} ETH</Text>
                     </View>
 
                     <View style={styles.ownerContainer}>
                         <Text style={styles.ownerLabel}>Owner</Text>
-                        <Text style={styles.ownerAddress}>{nft.owner}</Text>
+                        <Text style={styles.ownerAddress}>{nft.owner || 'Unknown'}</Text>
                     </View>
 
                     <View style={styles.descriptionContainer}>
                         <Text style={styles.descriptionTitle}>Description</Text>
-                        <Text style={styles.description}>{nft.description}</Text>
+                        <Text style={styles.description}>{nft.description || 'No description available'}</Text>
                     </View>
+
+                    {nft.collection && (
+                        <View style={styles.descriptionContainer}>
+                            <Text style={styles.descriptionTitle}>Collection</Text>
+                            <Text style={styles.description}>{nft.collection.name}</Text>
+                            {nft.collection.description && (
+                                <Text style={styles.description}>{nft.collection.description}</Text>
+                            )}
+                        </View>
+                    )}
 
                     <View style={styles.detailsContainer}>
                         <Text style={styles.detailsTitle}>Details</Text>
@@ -242,13 +330,19 @@ const DetailScreen = () => {
                             </Text>
                         </View>
                         <View style={styles.detailRow}>
-                            <Text style={styles.detailLabel}>ID</Text>
-                            <Text style={styles.detailValue}>{nft.id}</Text>
+                            <Text style={styles.detailLabel}>Contract</Text>
+                            <Text style={styles.detailValue} numberOfLines={1}>
+                                {nft.contractAddress || 'Unknown'}
+                            </Text>
+                        </View>
+                        <View style={styles.detailRow}>
+                            <Text style={styles.detailLabel}>Token ID</Text>
+                            <Text style={styles.detailValue}>{nft.tokenId || 'Unknown'}</Text>
                         </View>
                     </View>
 
                     <TouchableOpacity style={styles.buyButton}>
-                        <Text style={styles.buyButtonText}>Buy Now</Text>
+                        <Text style={styles.buyButtonText}>View on OpenSea</Text>
                     </TouchableOpacity>
                 </Animated.View>
             </Animated.ScrollView>
@@ -266,6 +360,11 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'center',
         backgroundColor: '#f5f5f5',
+    },
+    loadingText: {
+        marginTop: 10,
+        fontSize: 16,
+        color: '#333',
     },
     errorContainer: {
         flex: 1,
@@ -291,7 +390,7 @@ const styles = StyleSheet.create({
     },
     header: {
         position: 'absolute',
-        top: 0,
+        top: 40,
         left: 0,
         right: 0,
         height: HEADER_HEIGHT,
@@ -299,7 +398,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'space-between',
         paddingHorizontal: 16,
-        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        backgroundColor: 'rgba(0, 0, 0, 0.3)',
         zIndex: 10,
     },
     backButton: {
@@ -328,6 +427,9 @@ const styles = StyleSheet.create({
     },
     scrollView: {
         flex: 1,
+    },
+    scrollViewContent: {
+        paddingTop: 0,
     },
     imageContainer: {
         width: SCREEN_WIDTH,
@@ -414,6 +516,8 @@ const styles = StyleSheet.create({
         fontSize: 16,
         color: '#333',
         fontWeight: '500',
+        maxWidth: '60%',
+        textAlign: 'right',
     },
     buyButton: {
         backgroundColor: '#3498db',

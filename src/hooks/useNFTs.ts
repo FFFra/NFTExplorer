@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { fetchNFTs } from '../services/nftService';
+import { fetchNFTs } from '../api/nft-service';
 import { NFT } from '../types/nft';
 
 export const useNFTs = () => {
@@ -18,9 +18,10 @@ export const useNFTs = () => {
             setError(null);
             const response = await fetchNFTs(12, nextPageToken);
 
-            setNfts(prev => [...prev, ...response.items]);
-            setNextPageToken(response.hasMore ? String(response.page + 1) : undefined);
-            setHasMore(response.hasMore);
+            setNfts(prev => [...prev, ...(response.collectibles || [])]);
+            setNextPageToken(response.nextPageToken);
+            setHasMore(!!response.nextPageToken);
+            setPage(prev => prev + 1);
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Failed to fetch NFTs');
         } finally {
