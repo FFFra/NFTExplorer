@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     View,
     Text,
@@ -26,6 +26,23 @@ interface NFTCardProps {
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
+const convertIpfsToHttp = (ipfsUrl: string): string => {
+    if (ipfsUrl.startsWith('ipfs://')) {
+        return ipfsUrl.replace('ipfs://', 'https://ipfs.io/ipfs/');
+    }
+    return ipfsUrl;
+};
+
+// Function to check if a URL is a JSON metadata URL
+const isJsonMetadataUrl = (url: string): boolean => {
+    return url.endsWith('.json');
+};
+
+// Function to get a placeholder image when all else fails
+const getPlaceholderImage = (): string => {
+    return 'https://via.placeholder.com/300x300?text=NFT';
+};
+
 const NFTCard: React.FC<NFTCardProps> = ({
     nft,
     onPress,
@@ -35,6 +52,7 @@ const NFTCard: React.FC<NFTCardProps> = ({
 }) => {
     const [isLoading, setIsLoading] = useState(true);
     const [hasError, setHasError] = useState(false);
+    const [actualImageUrl, setActualImageUrl] = useState<string | null>(null);
 
     // Animated values
     const scale = useSharedValue(1);
@@ -53,6 +71,53 @@ const NFTCard: React.FC<NFTCardProps> = ({
 
     const cardWidth = getCardWidth();
     const cardHeight = viewMode === 'list' ? 120 : cardWidth;
+
+    // Fetch metadata and extract image URL if needed
+    useEffect(() => {
+        const fetchMetadata = async () => {
+            try {
+                // Use the best available URL
+                const sourceUrl = nft.imageUrl || nft.thumbnailUrl || nft.mediaUrl;
+
+                if (!sourceUrl) {
+                    console.warn(`No source URL available for NFT ${nft.id}`);
+                    setActualImageUrl(getPlaceholderImage());
+                    setIsLoading(false);
+                    return;
+                }
+
+                // If the URL doesn't look like a JSON metadata file, use it directly
+                if (!isJsonMetadataUrl(sourceUrl)) {
+                    setActualImageUrl(sourceUrl);
+                    return;
+                }
+
+                console.warn(`Fetching metadata for NFT ${nft.id} from ${sourceUrl}`);
+                const response = await fetch(sourceUrl);
+                const metadata = await response.json();
+
+                console.warn(`Metadata for NFT ${nft.id}:`, metadata);
+
+                // Extract the image URL from the metadata
+                if (metadata && metadata.image) {
+                    const imageUrl = convertIpfsToHttp(metadata.image);
+                    console.warn(`Extracted image URL for NFT ${nft.id}: ${imageUrl}`);
+                    setActualImageUrl(imageUrl);
+                } else {
+                    console.warn(`No image found in metadata for NFT ${nft.id}`);
+                    setActualImageUrl(getPlaceholderImage());
+                }
+            } catch (error) {
+                console.error(`Error fetching metadata for NFT ${nft.id}:`, error);
+                setActualImageUrl(getPlaceholderImage());
+                setHasError(true);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        fetchMetadata();
+    }, [nft.id, nft.imageUrl, nft.thumbnailUrl, nft.mediaUrl]);
 
     // Animation for scale effect on press
     const onPressIn = () => {
@@ -96,11 +161,22 @@ const NFTCard: React.FC<NFTCardProps> = ({
     };
 
     const handleError = () => {
+        console.warn(`Image load error for NFT ${nft.id}:`, actualImageUrl);
         setHasError(true);
         setIsLoading(false);
     };
 
     const renderMedia = () => {
+        // Initially show a loading state
+        if (isLoading && !actualImageUrl) {
+            return (
+                <View style={[styles.mediaContainer, { width: cardWidth, height: cardHeight }]}>
+                    <ActivityIndicator size="small" color="#3498db" />
+                </View>
+            );
+        }
+
+        // Show error state if there was an error
         if (hasError) {
             return (
                 <View style={[styles.mediaContainer, { width: cardWidth, height: cardHeight }]}>
@@ -109,10 +185,13 @@ const NFTCard: React.FC<NFTCardProps> = ({
             );
         }
 
+        // Use the actual image URL we got from metadata, or fallback to a placeholder
+        const imageSource = actualImageUrl || getPlaceholderImage();
+
         return (
             <View style={[styles.mediaContainer, { width: cardWidth, height: cardHeight }]}>
                 <Image
-                    source={{ uri: nft.imageUrl }}
+                    source={{ uri: imageSource }}
                     style={styles.media}
                     onLoadEnd={handleLoadEnd}
                     onError={handleError}

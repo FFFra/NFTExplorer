@@ -24,9 +24,9 @@ import Animated, {
 } from 'react-native-reanimated';
 import { RootStackParamList } from '../../navigation';
 import { NFT, ViewMode, GridColumns } from '../../types/nft';
-import { fetchNFTs } from '../../api/nft-service';
 import NFTCard from '../../components/NFTCard';
 import NFTSkeleton from '../../components/LoadingStates/index';
+import { fetchNFTs } from '../../api/nft-service';
 
 import { Ionicons } from '@expo/vector-icons'; // Make sure to install expo/vector-icons
 
@@ -52,6 +52,7 @@ const HomeScreen = () => {
     const layoutAnimation = useSharedValue(0);
     const headerHeight = useSharedValue(60);
 
+
     useEffect(() => {
         loadNFTs();
         StatusBar.setBarStyle('dark-content');
@@ -65,7 +66,16 @@ const HomeScreen = () => {
         );
     }, [viewMode, columns]);
 
+    // Add this log whenever nfts state changes
+    useEffect(() => {
+        console.warn('NFTs state updated:', {
+            count: nfts.length,
+            firstNft: nfts.length > 0 ? nfts[0] : null
+        });
+    }, [nfts]);
+
     const loadNFTs = async (refresh = true) => {
+        console.warn(`${refresh ? 'Initial load' : 'Loading more'} NFTs...`);
         try {
             if (refresh) {
                 setLoading(true);
@@ -75,19 +85,46 @@ const HomeScreen = () => {
             }
 
             const token = refresh ? undefined : nextPageToken;
+            console.warn('Fetching NFTs...', { pageSize: 12, token });
             const response = await fetchNFTs(12, token);
+            console.warn('Response received:', {
+                hasCollectibles: !!response?.collectibles,
+                collectiblesCount: response?.collectibles?.length || 0
+            });
 
-            if (refresh) {
-                setNfts(response.collectibles);
+            if (response && response.collectibles && response.collectibles.length > 0) {
+                console.warn('NFTs found, updating state');
+
+                if (refresh) {
+                    setNfts(response.collectibles);
+                } else {
+                    setNfts(prev => [...prev, ...response.collectibles]);
+                }
+
+                // Use page information to construct next page token
+                setNextPageToken(response.hasMore ? String(response.page + 1) : undefined);
+                setError(null);
+
+                // Verify the NFT data structure matches what the card component expects
+                if (response.collectibles.length > 0) {
+                    const firstNft = response.collectibles[0];
+                    console.warn('Sample NFT data structure:', {
+                        id: firstNft.id,
+                        name: firstNft.name,
+                        imageUrl: firstNft.thumbnailUrl || firstNft.mediaUrl,
+                        hasImageUrl: !!firstNft.thumbnailUrl || !!firstNft.mediaUrl
+                    });
+                }
             } else {
-                setNfts(prev => [...prev, ...response.collectibles]);
+                console.warn('No collectibles found in response');
+                if (refresh) {
+                    setNfts([]);
+                    setError('No NFTs found. Please try again later.');
+                }
             }
-
-            setNextPageToken(response.nextPageToken);
-            setError(null);
         } catch (err) {
             setError('Failed to load NFTs. Please try again.');
-            console.error(err);
+            console.error('Error in loadNFTs:', err);
         } finally {
             setLoading(false);
             setRefreshing(false);
@@ -158,15 +195,24 @@ const HomeScreen = () => {
         };
     });
 
-    const renderNFTItem = ({ item, index }: { item: NFT; index: number }) => (
-        <NFTCard
-            nft={item}
-            onPress={navigateToDetail}
-            columns={columns}
-            viewMode={viewMode}
-            index={index}
-        />
-    );
+    // Add this debug helper for rendering NFT items
+    const renderNFTItem = ({ item, index }: { item: NFT; index: number }) => {
+        console.warn(`Rendering NFT at index ${index}:`, {
+            id: item.id,
+            name: item.name,
+            hasImageUrl: !!item.thumbnailUrl || !!item.mediaUrl
+        });
+
+        return (
+            <NFTCard
+                nft={item}
+                onPress={navigateToDetail}
+                columns={columns}
+                viewMode={viewMode}
+                index={index}
+            />
+        );
+    };
 
     const renderFooter = () => {
         if (!loadingMore) return null;

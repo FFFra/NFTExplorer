@@ -21,7 +21,8 @@ export interface NFT {
 }
 
 export interface NFTsResponse {
-    items: NFT[];
+    collectibles: NFT[];
+    nextPageToken?: string;
     total: number;
     page: number;
     limit: number;

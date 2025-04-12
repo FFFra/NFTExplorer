@@ -25,7 +25,7 @@ import Animated, {
 import { Ionicons } from '@expo/vector-icons';
 import { RootStackParamList } from '../../navigation';
 import { NFT } from '../../types/nft';
-import { fetchNFTs } from '../../services/nft-service';
+import { getNFTById } from "../../services/nftService";
 
 type DetailScreenRouteProp = RouteProp<RootStackParamList, 'Detail'>;
 type DetailScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Detail'>;

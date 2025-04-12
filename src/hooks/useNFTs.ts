@@ -8,6 +8,7 @@ export const useNFTs = () => {
     const [error, setError] = useState<string | null>(null);
     const [page, setPage] = useState(1);
     const [hasMore, setHasMore] = useState(true);
+    const [nextPageToken, setNextPageToken] = useState<string | undefined>(undefined);
 
     const fetchNextPage = useCallback(async () => {
         if (!hasMore || isLoading) return;
@@ -15,20 +16,21 @@ export const useNFTs = () => {
         try {
             setIsLoading(true);
             setError(null);
-            const response = await fetchNFTs(page, 12);
+            const response = await fetchNFTs(12, nextPageToken);
 
             setNfts(prev => [...prev, ...response.items]);
-            setPage(prev => prev + 1);
+            setNextPageToken(response.hasMore ? String(response.page + 1) : undefined);
             setHasMore(response.hasMore);
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Failed to fetch NFTs');
         } finally {
             setIsLoading(false);
         }
-    }, [page, hasMore, isLoading]);
+    }, [nextPageToken, hasMore, isLoading]);
 
     const refetch = useCallback(async () => {
         setNfts([]);
+        setNextPageToken(undefined);
         setPage(1);
         setHasMore(true);
         await fetchNextPage();
@@ -42,4 +44,4 @@ export const useNFTs = () => {
         fetchNextPage,
         refetch
     };
-}; 
+};
