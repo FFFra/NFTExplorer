@@ -1,11 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
     View,
     Text,
     StyleSheet,
     Image,
     TouchableOpacity,
-    Dimensions,
     StatusBar,
     Share,
     ActivityIndicator
@@ -18,34 +17,37 @@ import Animated, {
     withTiming,
     withSpring,
     interpolate,
-    Extrapolate,
     runOnJS
 } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { RootStackParamList } from '../../navigation';
 import { NFT } from '../../types/nft';
-import { fetchNFTs } from '../../api/nft-service';
+import { useNFT } from '../../context';
+import { useScreenDimensions } from '../../hooks/useScreenDimensions';
+import { convertIpfsToHttp } from '../../utils/helpers';
+import { HEADER_HEIGHT } from '../../utils/metrics';
 
 type DetailScreenRouteProp = RouteProp<RootStackParamList, 'Detail'>;
 type DetailScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Detail'>;
 
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
-const HEADER_HEIGHT = 60;
-const IMAGE_HEIGHT = SCREEN_HEIGHT * 0.5;
-
-// Function to convert IPFS URL to HTTP URL if needed
-const convertIpfsToHttp = (ipfsUrl: string): string => {
-    if (!ipfsUrl) return '';
-    if (ipfsUrl.startsWith('ipfs://')) {
-        return ipfsUrl.replace('ipfs://', 'https://ipfs.io/ipfs/');
-    }
-    return ipfsUrl;
-};
-
 const DetailScreen = () => {
+    const dimensions = useScreenDimensions();
+    const { width: screenWidth, height: screenHeight } = dimensions;
+    const imageHeight = screenHeight * 0.5;
+
+    // Create derived styles based on dimensions
+    const derivedStyles = useMemo(() => ({
+        imageContainer: {
+            width: screenWidth,
+            height: imageHeight,
+            backgroundColor: '#f0f0f0',
+        },
+    }), [screenWidth, imageHeight]);
+
     const navigation = useNavigation<DetailScreenNavigationProp>();
     const route = useRoute<DetailScreenRouteProp>();
     const { nftId } = route.params;
+    const { getNFTById, nfts, fetchInitialNFTs } = useNFT();
 
     const [nft, setNft] = useState<NFT | null>(null);
     const [isLoading, setIsLoading] = useState(true);
@@ -82,10 +84,14 @@ const DetailScreen = () => {
                 setIsLoading(true);
                 console.warn(`Fetching details for NFT ID: ${nftId}`);
 
-                // Fetch all NFTs and find the one we need by ID
-                const response = await fetchNFTs(50);
+                // Try to get NFT from the context first
+                let foundNFT = getNFTById(nftId);
 
-                const foundNFT = response.collectibles.find((item: NFT) => item.id === nftId);
+                // If not found, try to fetch all NFTs first
+                if (!foundNFT && nfts.length === 0) {
+                    await fetchInitialNFTs();
+                    foundNFT = getNFTById(nftId);
+                }
 
                 if (foundNFT) {
                     console.warn(`Found NFT: ${foundNFT.name}`);
@@ -134,7 +140,7 @@ const DetailScreen = () => {
         };
 
         loadNFT();
-    }, [nftId, contentOpacity]);
+    }, [nftId, contentOpacity, getNFTById, nfts.length, fetchInitialNFTs]);
 
     // Animated styles
     const headerAnimatedStyle = useAnimatedStyle(() => {
@@ -146,7 +152,7 @@ const DetailScreen = () => {
                         scrollY.value,
                         [0, HEADER_HEIGHT],
                         [0, -HEADER_HEIGHT],
-                        Extrapolate.CLAMP
+                        'clamp'
                     ),
                 },
             ],
@@ -160,9 +166,9 @@ const DetailScreen = () => {
                 {
                     translateY: interpolate(
                         scrollY.value,
-                        [0, IMAGE_HEIGHT],
-                        [0, -IMAGE_HEIGHT / 2],
-                        Extrapolate.CLAMP
+                        [0, imageHeight],
+                        [0, -imageHeight / 2],
+                        'clamp'
                     ),
                 },
             ],
@@ -178,7 +184,7 @@ const DetailScreen = () => {
                         contentOpacity.value,
                         [0, 1],
                         [50, 0],
-                        Extrapolate.CLAMP
+                        'clamp'
                     ),
                 },
             ],
@@ -221,6 +227,19 @@ const DetailScreen = () => {
             console.warn(`Image load error, using placeholder: ${placeholderUrl}`);
             setImageUrlState(placeholderUrl);
         }
+    };
+
+    // Fix for headerOpacity.value interpolate
+    const handleScroll = (offsetY: number) => {
+        scrollY.value = offsetY;
+
+        // Fade out header when scrolling down
+        headerOpacity.value = interpolate(
+            offsetY,
+            [0, HEADER_HEIGHT],
+            [1, 0],
+            'clamp'
+        );
     };
 
     if (isLoading) {
@@ -270,22 +289,14 @@ const DetailScreen = () => {
                 style={styles.scrollView}
                 contentContainerStyle={styles.scrollViewContent}
                 onScroll={(event) => {
-                    scrollY.value = event.nativeEvent.contentOffset.y;
-
-                    // Fade out header when scrolling down
-                    headerOpacity.value = interpolate(
-                        scrollY.value,
-                        [0, HEADER_HEIGHT],
-                        [1, 0],
-                        Extrapolate.CLAMP
-                    );
+                    handleScroll(event.nativeEvent.contentOffset.y);
                 }}
                 scrollEventThrottle={16}
                 showsVerticalScrollIndicator={false}
             >
                 {/* Hero Image */}
                 <TouchableOpacity activeOpacity={0.9} onPress={handleImagePress}>
-                    <Animated.View style={[styles.imageContainer, imageAnimatedStyle]}>
+                    <Animated.View style={[derivedStyles.imageContainer, imageAnimatedStyle]}>
                         <Image
                             source={{ uri: displayImageUrl }}
                             style={styles.image}
@@ -430,11 +441,6 @@ const styles = StyleSheet.create({
     },
     scrollViewContent: {
         paddingTop: 0,
-    },
-    imageContainer: {
-        width: SCREEN_WIDTH,
-        height: IMAGE_HEIGHT,
-        backgroundColor: '#f0f0f0',
     },
     image: {
         width: '100%',
