@@ -25,11 +25,10 @@ import { NFT } from '../../types/nft';
 import { useNFT } from '../../context';
 import { useScreenDimensions } from '../../hooks/useScreenDimensions';
 import { convertIpfsToHttp } from '../../utils/helpers';
+import { HEADER_HEIGHT } from '../../utils/metrics';
 
 type DetailScreenRouteProp = RouteProp<RootStackParamList, 'Detail'>;
 type DetailScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Detail'>;
-
-const HEADER_HEIGHT = 60;
 
 const DetailScreen = () => {
     const dimensions = useScreenDimensions();

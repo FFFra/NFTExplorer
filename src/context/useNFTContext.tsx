@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useCallback } from 'react';
 import { NFT, NFTsResponse } from '../types/nft';
 import { NFTContextType } from '../types/context';
 import { NFTProviderProps } from '../types/components';

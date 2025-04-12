@@ -9,7 +9,6 @@ import Animated, {
     Easing,
 } from 'react-native-reanimated';
 import styles, { createSkeletonStyles } from './styles';
-import { ViewMode, GridColumns } from '../../types/nft';
 import { SkeletonProps } from '../../types/components';
 import { useScreenDimensions } from '../../hooks/useScreenDimensions';
 

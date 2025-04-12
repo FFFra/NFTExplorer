@@ -28,8 +28,7 @@ import NFTCard from '../../components/NFTCard';
 import NFTSkeleton from '../../components/LoadingStates/index';
 import { useNFT } from '../../context';
 import { useScreenDimensions } from '../../hooks/useScreenDimensions';
-
-import { Ionicons } from '@expo/vector-icons'; // Make sure to install expo/vector-icons
+import { Ionicons } from '@expo/vector-icons';
 
 type HomeScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Main'>;
 
@@ -260,7 +259,7 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: '#ffffff',
-        paddingTop: Platform.OS === 'android' ? 30 : 0, // Add top padding for Android status bar
+        paddingTop: Platform.OS === 'android' ? 30 : 0,
     },
     header: {
         paddingHorizontal: 16,

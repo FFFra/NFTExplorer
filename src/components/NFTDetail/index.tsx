@@ -7,7 +7,6 @@ import Animated, {
     withSpring,
     interpolate,
 } from 'react-native-reanimated';
-import { NFT } from '../../types/nft';
 import { NFTDetailProps } from '../../types/components';
 import { useScreenDimensions } from '../../hooks/useScreenDimensions';
 import { formatAddress } from '../../utils/helpers';

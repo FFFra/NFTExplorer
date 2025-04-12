@@ -12,7 +12,6 @@ import Animated, {
     withSpring,
     interpolate
 } from 'react-native-reanimated';
-import { NFT, GridColumns, ViewMode } from '../../types/nft';
 import { NFTCardProps } from '../../types/components';
 import { useScreenDimensions } from '../../hooks/useScreenDimensions';
 import { convertIpfsToHttp, isJsonMetadataUrl, getPlaceholderImage, getBestImageUrl } from '../../utils/helpers';

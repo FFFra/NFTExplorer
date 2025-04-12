@@ -1,4 +1,4 @@
-import { NFT, NFTsResponse } from './nft';
+import { NFT } from './nft';
 
 /**
  * Type definitions for context API interfaces
