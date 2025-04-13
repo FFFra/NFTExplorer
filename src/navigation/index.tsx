@@ -12,24 +12,53 @@ import { useFeatureAlert } from '../hooks/useFeatureAlert';
 
 // Create placeholder screens for tabs that use feature alerts
 const PlaceholderScreen = ({ title, alertFn }: { title: string, alertFn: () => void }) => {
-    // Track whether we've shown the alert before
+    // Track whether we've shown the alert before to prevent duplicate alerts
     const hasShownAlert = React.useRef(false);
 
-    // Only show the alert when the screen comes into focus and hasn't shown an alert yet
-    useFocusEffect(
-        React.useCallback(() => {
-            // Only show the alert the first time the screen is focused
-            if (!hasShownAlert.current) {
+    // Use a short timeout to make sure the alert doesn't block navigation
+    const showAlertWithDelay = React.useCallback(() => {
+        if (!hasShownAlert.current) {
+            // Small delay to ensure the screen is fully in focus before showing alert
+            const timer = setTimeout(() => {
                 alertFn();
                 hasShownAlert.current = true;
-            }
-        }, [alertFn])
-    );
+            }, 300); // Small delay to prevent navigation issues
+
+            return () => clearTimeout(timer);
+        }
+    }, [alertFn]);
+
+    // Use this effect when the screen comes into focus
+    useFocusEffect(showAlertWithDelay);
 
     return (
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-            <Text style={{ fontSize: 18, marginBottom: 10 }}>{title} feature coming soon!</Text>
-            <Text style={{ fontSize: 14, color: '#666', textAlign: 'center', paddingHorizontal: 30 }}>
+        <View style={{
+            flex: 1,
+            justifyContent: 'center',
+            alignItems: 'center',
+            backgroundColor: '#f9f9f9',
+            padding: 20
+        }}>
+            <Ionicons
+                name={title === 'Favorites' ? 'heart' : 'settings'}
+                size={60}
+                color="#3498db"
+                style={{ marginBottom: 20 }}
+            />
+            <Text style={{
+                fontSize: 22,
+                fontWeight: 'bold',
+                marginBottom: 15,
+                color: '#333'
+            }}>
+                {title} feature coming soon!
+            </Text>
+            <Text style={{
+                fontSize: 16,
+                color: '#666',
+                textAlign: 'center',
+                lineHeight: 24
+            }}>
                 This feature is currently under development and will be available in a future update.
             </Text>
         </View>
