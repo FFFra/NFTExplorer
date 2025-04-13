@@ -8,18 +8,33 @@ A modern mobile application built with React Native and Expo that allows users t
 
 ## Design
 
-https://github.com/user-attachments/assets/0519acdb-d855-440c-84ba-c321feacc3a6
+### iOS
+
+
+https://github.com/user-attachments/assets/377ac567-c327-4d6d-9b0e-53a2e69f43b4
+
+
+### Android
+
+
+https://github.com/user-attachments/assets/a18f7f9e-343b-46e8-95bc-4e909447b213
+
 
 ## Features
 
 - **Stunning UI**: Beautiful, responsive, and modern user interface with smooth animations
-- **Grid and List Views**: View NFTs in either grid or list views with adjustable number of columns
+- **Grid and List Views**: View NFTs in either grid or list views with an adjustable number of columns
 - **Skeleton Loading**: Beautiful loading states that provide a better user experience
 - **Pull to Refresh**: Refresh content with a simple pull-down gesture
 - **Infinite Scrolling**: Load more NFTs as you scroll down
 - **Detailed NFT View**: Detailed information about each NFT with interactive elements
 - **Error Handling**: Graceful error handling with fallbacks to ensure uninterrupted browsing
 - **Mock Data**: Seamless fallback to mock data when API returns empty results or errors
+
+## Notes
+
+- The application includes mockNft data that renders random images for design testing purposes. This feature is particularly useful for design and experience tests, allowing developers to evaluate the UI with various image types without relying on actual API responses.
+
 
 ## Technologies Used
 
@@ -30,6 +45,7 @@ https://github.com/user-attachments/assets/0519acdb-d855-440c-84ba-c321feacc3a6
 - **Context API**: For global state management
 - **Custom Hooks**: For shared functionality and logic
 - **Typescript**: For type-safe code
+
 
 ## Architecture
 
@@ -83,15 +99,11 @@ The application follows a clean architecture pattern with proper separation of c
 2. Install dependencies:
    ```
    npm install
-   # or
-   yarn install
    ```
 
 3. Start the development server:
    ```
-   npm start
-   # or
-   yarn start
+   npx expo start
    ```
 
 4. Follow the instructions in the terminal to open the app on your device or emulator.
