@@ -1,158 +1,18 @@
 import axios from 'axios';
 import { NFTsResponse, NFT, ApiCollectible, ApiResponse, NFTMetadata } from '../types/nft';
-import { getPlaceholderImageWithIndex } from '../utils/helpers';
+import {
+    getPlaceholderImageWithIndex,
+    convertIpfsToHttpAsync,
+    determineMediaType,
+    fetchMetadata,
+    extractImageUrl
+} from '../utils/helpers';
+import { API, COMMON, COLLECTION } from '../utils/constants';
 
-const BASE_URL = 'https://glacier-api.avax.network/v1/chains/43114';
-const ADDRESS = '0x69155e7ca2e688ccdc247f6c4ddf374b3ae77bd6';
-
-// List of IPFS gateways to try in order
-const IPFS_GATEWAYS = [
-    'https://dweb.link/ipfs/',
-    'https://gateway.pinata.cloud/ipfs/',
-    'https://cloudflare-ipfs.com/ipfs/',
-    'https://ipfs.io/ipfs/',
-    'https://gateway.ipfs.io/ipfs/'
-];
-
-/**
- * Converts IPFS URL to HTTP URL using multiple gateways with fallback
- */
-const convertIpfsToHttp = async (ipfsUrl: string): Promise<string> => {
-    if (!ipfsUrl) return '';
-
-    // If it's already an HTTP URL, return it
-    if (ipfsUrl.startsWith('http')) {
-        return ipfsUrl;
-    }
-
-    // Handle ipfs:// protocol
-    if (ipfsUrl.startsWith('ipfs://')) {
-        const cid = ipfsUrl.replace('ipfs://', '');
-
-        // Try each gateway until one works
-        for (const gateway of IPFS_GATEWAYS) {
-            const fullUrl = `${gateway}${cid}`;
-            try {
-                // Make a HEAD request to check if the URL is accessible
-                await axios.head(fullUrl, { timeout: 3000 });
-                console.log(`Successfully validated gateway: ${fullUrl}`);
-                return fullUrl;
-            } catch (error) {
-                console.warn(`Gateway ${gateway} failed for ${cid}, trying next...`);
-                // Continue to the next gateway
-            }
-        }
-
-        // If all gateways failed, return the URL with the first gateway anyway
-        return `${IPFS_GATEWAYS[0]}${cid}`;
-    }
-
-    return ipfsUrl;
-};
-
-/**
- * Fetch metadata from URI with retry logic across multiple gateways
- */
-const fetchMetadata = async (tokenUri: string): Promise<NFTMetadata> => {
-    if (!tokenUri) return {};
-
-    try {
-        // First convert the URI to use a gateway
-        const httpUri = await convertIpfsToHttp(tokenUri);
-
-        console.log(`Fetching metadata from: ${httpUri}`);
-        const response = await axios.get(httpUri, { timeout: 5000 });
-        return response.data;
-    } catch (error) {
-        // If the tokenUri itself isn't accessible via the selected gateway, try others
-        if (tokenUri.startsWith('ipfs://')) {
-            const cid = tokenUri.replace('ipfs://', '');
-
-            for (let i = 1; i < IPFS_GATEWAYS.length; i++) {  // Start from 1 since we already tried the first one
-                try {
-                    const uri = `${IPFS_GATEWAYS[i]}${cid}`;
-                    console.log(`Trying alternative gateway for metadata: ${uri}`);
-                    const response = await axios.get(uri, { timeout: 5000 });
-                    return response.data;
-                } catch (gatewayError) {
-                    // Continue to the next gateway
-                }
-            }
-        }
-
-        console.error(`All metadata fetch attempts failed for ${tokenUri}`);
-        throw error;
-    }
-};
-
-/**
- * Extract image URL from metadata and ensure it's HTTP accessible
- */
-const extractImageUrl = async (metadata: NFTMetadata, fallbackUrl: string, index: number): Promise<string> => {
-    // No metadata, use fallback
-    if (!metadata) return fallbackUrl;
-
-    // Check for image in metadata (common field)
-    if (metadata.image) {
-        try {
-            return await convertIpfsToHttp(metadata.image);
-        } catch (error) {
-            console.warn(`Failed to convert image URL: ${metadata.image}`);
-        }
-    }
-
-    // Try alternative image fields
-    const imageFields = ['image_url', 'imageUrl', 'animation_url', 'media', 'mediaUrl'];
-    for (const field of imageFields) {
-        if (metadata[field]) {
-            try {
-                return await convertIpfsToHttp(metadata[field]);
-            } catch (error) {
-                console.warn(`Failed to convert ${field}: ${metadata[field]}`);
-            }
-        }
-    }
-
-    // Last resort: try to extract URL from metadata properties if it exists
-    if (metadata.properties && metadata.properties.image) {
-        try {
-            return await convertIpfsToHttp(metadata.properties.image);
-        } catch (error) {
-            console.warn(`Failed to convert properties.image: ${metadata.properties.image}`);
-        }
-    }
-
-    // No image found, use fallback
-    return fallbackUrl;
-};
-
-/**
- * Determine media type based on URL or metadata
- */
-const determineMediaType = (url: string, metadata: NFTMetadata): string => {
-    // Check metadata first
-    if (metadata && metadata.mediaType) return metadata.mediaType;
-    if (metadata && metadata.media_type) return metadata.media_type;
-
-    // Determine from URL extension
-    if (!url) return 'image/jpeg';
-
-    const extension = url.split('.').pop()?.toLowerCase();
-    if (extension === 'png') return 'image/png';
-    if (extension === 'gif') return 'image/gif';
-    if (extension === 'svg') return 'image/svg+xml';
-    if (extension === 'mp4') return 'video/mp4';
-    if (extension === 'webm') return 'video/webm';
-    if (extension === 'mp3') return 'audio/mpeg';
-
-    // Default to JPEG
-    return 'image/jpeg';
-};
-
-export const fetchNFTs = async (pageSize = 10, pageToken?: string): Promise<NFTsResponse> => {
+export const fetchNFTs = async (pageSize = API.PAGINATION.DEFAULT_PAGE_SIZE, pageToken?: string): Promise<NFTsResponse> => {
     try {
         // Construct the endpoint
-        const endpoint = `${BASE_URL}/addresses/${ADDRESS}/balances:listCollectibles`;
+        const endpoint = `${API.BASE_URL}/addresses/${API.ADDRESSES.DEFAULT}/balances:listCollectibles`;
         const params = {
             pageSize,
             ...(pageToken && { pageToken })
@@ -218,11 +78,11 @@ export const fetchNFTs = async (pageSize = 10, pageToken?: string): Promise<NFTs
 
                     // Construct collection info
                     const collection = {
-                        name: item.name || 'Unknown Collection',
+                        name: item.name || COLLECTION.DEFAULT_NAME,
                         symbol: item.symbol || '',
-                        description: metadata && metadata.collection?.description || '',
+                        description: metadata && metadata.collection?.description || COLLECTION.DEFAULT_DESCRIPTION,
                         imageUrl: metadata && metadata.collection?.image
-                            ? await convertIpfsToHttp(metadata.collection.image)
+                            ? await convertIpfsToHttpAsync(metadata.collection.image)
                             : imageUrl
                     };
 
@@ -237,11 +97,11 @@ export const fetchNFTs = async (pageSize = 10, pageToken?: string): Promise<NFTs
                         mediaUrl: imageUrl,
                         thumbnailUrl: imageUrl,
                         imageUrl: imageUrl,
-                        creator: metadata && metadata.creator || 'Unknown',
+                        creator: metadata && metadata.creator || COMMON.UNKNOWN_CREATOR,
                         collection: collection,
                         metadata: metadata,
                         price: metadata && metadata.price || 0,
-                        owner: metadata && metadata.owner || 'Unknown',
+                        owner: metadata && metadata.owner || COMMON.UNKNOWN_OWNER,
                         createdAt: new Date().toISOString(),
                         ercType: item.ercType || 'ERC-721'
                     };
@@ -259,15 +119,15 @@ export const fetchNFTs = async (pageSize = 10, pageToken?: string): Promise<NFTs
                         mediaUrl: getPlaceholderImageWithIndex(index),
                         thumbnailUrl: getPlaceholderImageWithIndex(index),
                         imageUrl: getPlaceholderImageWithIndex(index),
-                        creator: 'Unknown',
+                        creator: COMMON.UNKNOWN_CREATOR,
                         collection: {
-                            name: item.name || 'Unknown Collection',
-                            description: '',
+                            name: item.name || COLLECTION.DEFAULT_NAME,
+                            description: COLLECTION.DEFAULT_DESCRIPTION,
                             imageUrl: getPlaceholderImageWithIndex(index)
                         },
                         metadata: {},
                         price: 0,
-                        owner: 'Unknown',
+                        owner: COMMON.UNKNOWN_OWNER,
                         createdAt: new Date().toISOString(),
                         ercType: item.ercType || 'ERC-721'
                     };
