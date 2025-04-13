@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { NFTsResponse, NFT } from '../types/nft';
+import { NFTsResponse, NFT, ApiCollectible, ApiResponse, NFTMetadata } from '../types/nft';
 import { getPlaceholderImageWithIndex } from '../utils/helpers';
 
 const BASE_URL = 'https://glacier-api.avax.network/v1/chains/43114';
@@ -53,7 +53,7 @@ const convertIpfsToHttp = async (ipfsUrl: string): Promise<string> => {
 /**
  * Fetch metadata from URI with retry logic across multiple gateways
  */
-const fetchMetadata = async (tokenUri: string): Promise<any> => {
+const fetchMetadata = async (tokenUri: string): Promise<NFTMetadata> => {
     if (!tokenUri) return {};
 
     try {
@@ -88,7 +88,7 @@ const fetchMetadata = async (tokenUri: string): Promise<any> => {
 /**
  * Extract image URL from metadata and ensure it's HTTP accessible
  */
-const extractImageUrl = async (metadata: any, fallbackUrl: string, index: number): Promise<string> => {
+const extractImageUrl = async (metadata: NFTMetadata, fallbackUrl: string, index: number): Promise<string> => {
     // No metadata, use fallback
     if (!metadata) return fallbackUrl;
 
@@ -129,7 +129,7 @@ const extractImageUrl = async (metadata: any, fallbackUrl: string, index: number
 /**
  * Determine media type based on URL or metadata
  */
-const determineMediaType = (url: string, metadata: any): string => {
+const determineMediaType = (url: string, metadata: NFTMetadata): string => {
     // Check metadata first
     if (metadata && metadata.mediaType) return metadata.mediaType;
     if (metadata && metadata.media_type) return metadata.media_type;
@@ -159,7 +159,7 @@ export const fetchNFTs = async (pageSize = 10, pageToken?: string): Promise<NFTs
         };
 
         console.log(`Fetching NFTs from ${endpoint}`);
-        const response = await axios.get(endpoint, { params });
+        const response = await axios.get<ApiResponse>(endpoint, { params });
 
         // Check if response has collectibleBalances
         const apiCollectibles = response.data.collectibleBalances;
@@ -180,9 +180,9 @@ export const fetchNFTs = async (pageSize = 10, pageToken?: string): Promise<NFTs
 
         // Process collectibles with retry logic
         const transformedCollectibles: NFT[] = await Promise.all(
-            apiCollectibles.map(async (item: any, index: number) => {
+            apiCollectibles.map(async (item: ApiCollectible, index: number) => {
                 try {
-                    let metadata = {};
+                    let metadata: NFTMetadata = {};
                     let name = item.name || `NFT #${item.tokenId}`;
                     let description = '';
 
