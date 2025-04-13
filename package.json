@@ -29,5 +29,12 @@
   "scripts": {
     "android": "expo run:android",
     "ios": "expo run:ios"
+  },
+  "expo": {
+    "doctor": {
+      "reactNativeDirectoryCheck": {
+        "listUnknownPackages": false
+      }
+    }
   }
 }
