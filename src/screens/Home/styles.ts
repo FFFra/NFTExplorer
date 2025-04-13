@@ -1,46 +1,74 @@
-import { StyleSheet } from 'react-native';
+import { StyleSheet, Platform } from 'react-native';
 
 export const styles = StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: '#ffffff',
+        paddingTop: Platform.OS === 'android' ? 30 : 0,
     },
     header: {
-        padding: 16,
+        paddingHorizontal: 16,
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
         borderBottomWidth: 1,
         borderBottomColor: '#f0f0f0',
+        height: 60,
+        backgroundColor: '#ffffff',
+        // Add elevation for Android shadow
+        ...Platform.OS === 'android' ? {
+            elevation: 4,
+            paddingTop: 8,
+        } : {},
     },
     title: {
         fontSize: 22,
         fontWeight: 'bold',
+        color: '#333',
     },
     viewControls: {
         flexDirection: 'row',
+        alignItems: 'center',
     },
     viewButton: {
-        backgroundColor: '#f0f0f0',
-        paddingHorizontal: 12,
-        paddingVertical: 6,
+        backgroundColor: '#f5f5f5',
+        padding: 8,
         borderRadius: 20,
         marginRight: 8,
-    },
-    columnButton: {
-        backgroundColor: '#f0f0f0',
-        paddingHorizontal: 12,
-        paddingVertical: 6,
-        borderRadius: 20,
-    },
-    content: {
-        flex: 1,
-        padding: 16,
+        width: 40,
+        height: 40,
         justifyContent: 'center',
         alignItems: 'center',
     },
+    columnButton: {
+        backgroundColor: '#f5f5f5',
+        padding: 8,
+        borderRadius: 20,
+        width: 40,
+        height: 40,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    columnButtonText: {
+        fontWeight: '600',
+        fontSize: 16,
+    },
+    content: {
+        flex: 1,
+    },
+    listContent: {
+        padding: 16, // Use consistent padding on all sides
+        paddingBottom: 80, // Add extra padding for tab bar
+    },
+    errorContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: 20,
+    },
     errorText: {
-        color: 'red',
+        color: '#e74c3c',
+        fontSize: 16,
         textAlign: 'center',
         marginBottom: 16,
     },
@@ -54,4 +82,7 @@ export const styles = StyleSheet.create({
         color: 'white',
         fontWeight: 'bold',
     },
+    footerLoader: {
+        marginVertical: 16,
+    }
 }); 
