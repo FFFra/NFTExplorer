@@ -1,6 +1,6 @@
 import { StyleSheet, Platform } from 'react-native';
 
-export const styles = StyleSheet.create({
+const styles = StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: '#ffffff',
@@ -85,4 +85,6 @@ export const styles = StyleSheet.create({
     footerLoader: {
         marginVertical: 16,
     }
-}); 
+});
+
+export default styles;

@@ -1,7 +1,7 @@
 import { StyleSheet } from "react-native";
 import { HEADER_HEIGHT } from "../../utils/metrics";
 
-export const styles = StyleSheet.create({
+const styles = StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: '#fff',
@@ -216,3 +216,5 @@ export const styles = StyleSheet.create({
         marginBottom: 8,
     },
 });
+
+export default styles;

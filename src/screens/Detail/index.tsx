@@ -26,7 +26,7 @@ import { useScreenDimensions } from '../../hooks/useScreenDimensions';
 import { convertIpfsToHttp } from '../../utils/helpers';
 import { HEADER_HEIGHT } from '../../utils/metrics';
 import { useFeatureAlert } from '../../hooks/useFeatureAlert';
-import { styles } from './styles';
+import styles from './styles';
 
 type DetailScreenRouteProp = RouteProp<RootStackParamList, 'Detail'>;
 type DetailScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Detail'>;

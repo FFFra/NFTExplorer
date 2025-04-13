@@ -26,7 +26,7 @@ import NFTSkeleton from '../../components/LoadingStates/index';
 import { useNFT } from '../../context';
 import { useScreenDimensions } from '../../hooks/useScreenDimensions';
 import { Ionicons } from '@expo/vector-icons';
-import { styles } from './styles';
+import styles from './styles';
 
 type HomeScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Main'>;
 
