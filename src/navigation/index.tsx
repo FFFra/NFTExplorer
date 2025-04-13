@@ -9,6 +9,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import HomeScreen from '../screens/Home';
 import DetailScreen from '../screens/Detail';
 import { useFeatureAlert } from '../hooks/useFeatureAlert';
+import { styles } from './styles';
 
 // Create placeholder screens for tabs that use feature alerts
 const PlaceholderScreen = ({ title, alertFn }: { title: string, alertFn: () => void }) => {
@@ -32,33 +33,17 @@ const PlaceholderScreen = ({ title, alertFn }: { title: string, alertFn: () => v
     useFocusEffect(showAlertWithDelay);
 
     return (
-        <View style={{
-            flex: 1,
-            justifyContent: 'center',
-            alignItems: 'center',
-            backgroundColor: '#f9f9f9',
-            padding: 20
-        }}>
+        <View style={styles.placeholderContainer}>
             <Ionicons
                 name={title === 'Favorites' ? 'heart' : 'settings'}
                 size={60}
                 color="#3498db"
-                style={{ marginBottom: 20 }}
+                style={styles.placeholderIcon}
             />
-            <Text style={{
-                fontSize: 22,
-                fontWeight: 'bold',
-                marginBottom: 15,
-                color: '#333'
-            }}>
+            <Text style={styles.placeholderTitle}>
                 {title} feature coming soon!
             </Text>
-            <Text style={{
-                fontSize: 16,
-                color: '#666',
-                textAlign: 'center',
-                lineHeight: 24
-            }}>
+            <Text style={styles.placeholderText}>
                 This feature is currently under development and will be available in a future update.
             </Text>
         </View>
@@ -110,12 +95,7 @@ const MainTabs = () => {
                 },
                 tabBarActiveTintColor: '#3498db',
                 tabBarInactiveTintColor: '#999',
-                tabBarStyle: {
-                    borderTopWidth: 1,
-                    borderTopColor: '#eee',
-                    backgroundColor: '#ffffff',
-                    ...(Platform.OS === 'android' && { elevation: 4 }),
-                },
+                tabBarStyle: styles.tabBar,
             })}
         >
             <Tab.Screen name="Explore" component={HomeScreen} />
