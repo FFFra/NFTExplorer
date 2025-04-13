@@ -3,10 +3,38 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
-import { Platform } from 'react-native';
+import { Platform, Text, View } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 
 import HomeScreen from '../screens/Home';
 import DetailScreen from '../screens/Detail';
+import { useFeatureAlert } from '../hooks/useFeatureAlert';
+
+// Create placeholder screens for tabs that use feature alerts
+const PlaceholderScreen = ({ title, alertFn }: { title: string, alertFn: () => void }) => {
+    // Track whether we've shown the alert before
+    const hasShownAlert = React.useRef(false);
+
+    // Only show the alert when the screen comes into focus and hasn't shown an alert yet
+    useFocusEffect(
+        React.useCallback(() => {
+            // Only show the alert the first time the screen is focused
+            if (!hasShownAlert.current) {
+                alertFn();
+                hasShownAlert.current = true;
+            }
+        }, [alertFn])
+    );
+
+    return (
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+            <Text style={{ fontSize: 18, marginBottom: 10 }}>{title} feature coming soon!</Text>
+            <Text style={{ fontSize: 14, color: '#666', textAlign: 'center', paddingHorizontal: 30 }}>
+                This feature is currently under development and will be available in a future update.
+            </Text>
+        </View>
+    );
+};
 
 export type RootStackParamList = {
     Main: undefined;
@@ -21,6 +49,17 @@ export type MainTabParamList = {
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 const Tab = createBottomTabNavigator<MainTabParamList>();
+
+// FavoritesScreen and SettingsScreen components with their respective alerts
+const FavoritesScreen = () => {
+    const { showFavoritesAlert } = useFeatureAlert();
+    return <PlaceholderScreen title="Favorites" alertFn={showFavoritesAlert} />;
+};
+
+const SettingsScreen = () => {
+    const { showSettingsAlert } = useFeatureAlert();
+    return <PlaceholderScreen title="Settings" alertFn={showSettingsAlert} />;
+};
 
 const MainTabs = () => {
     return (
@@ -51,8 +90,8 @@ const MainTabs = () => {
             })}
         >
             <Tab.Screen name="Explore" component={HomeScreen} />
-            <Tab.Screen name="Favorites" component={HomeScreen} />
-            <Tab.Screen name="Settings" component={HomeScreen} />
+            <Tab.Screen name="Favorites" component={FavoritesScreen} />
+            <Tab.Screen name="Settings" component={SettingsScreen} />
         </Tab.Navigator>
     );
 };

@@ -26,6 +26,7 @@ import { useNFT } from '../../context';
 import { useScreenDimensions } from '../../hooks/useScreenDimensions';
 import { convertIpfsToHttp } from '../../utils/helpers';
 import { HEADER_HEIGHT } from '../../utils/metrics';
+import { useFeatureAlert } from '../../hooks/useFeatureAlert';
 
 type DetailScreenRouteProp = RouteProp<RootStackParamList, 'Detail'>;
 type DetailScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Detail'>;
@@ -59,6 +60,9 @@ const DetailScreen = () => {
     const imageScale = useSharedValue(1);
     const headerOpacity = useSharedValue(1);
     const contentOpacity = useSharedValue(0);
+
+    // Add feature alert hook
+    const { showOpenSeaAlert } = useFeatureAlert();
 
     // Hide the default navigation header when this screen is focused
     useFocusEffect(
@@ -352,7 +356,10 @@ const DetailScreen = () => {
                         </View>
                     </View>
 
-                    <TouchableOpacity style={styles.buyButton}>
+                    <TouchableOpacity
+                        style={styles.buyButton}
+                        onPress={() => showOpenSeaAlert(nft.contractAddress, nft.tokenId)}
+                    >
                         <Text style={styles.buyButtonText}>View on OpenSea</Text>
                     </TouchableOpacity>
                 </Animated.View>
