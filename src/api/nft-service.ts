@@ -1,26 +1,31 @@
 import axios from 'axios';
-import { NFTsResponse, NFT } from '../types/nft';
-import { convertIpfsToHttp, getPlaceholderImageWithIndex } from '../utils/helpers';
+import { NFTsResponse, NFT, ApiCollectible, ApiResponse, NFTMetadata } from '../types/nft';
+import {
+    getPlaceholderImageWithIndex,
+    convertIpfsToHttpAsync,
+    determineMediaType,
+    fetchMetadata,
+    extractImageUrl
+} from '../utils/helpers';
+import { API, COMMON, COLLECTION } from '../utils/constants';
 
-const BASE_URL = 'https://glacier-api.avax.network/v1/chains/43114';
-const ADDRESS = '0x69155e7ca2e688ccdc247f6c4ddf374b3ae77bd6';
-
-export const fetchNFTs = async (pageSize = 10, pageToken?: string): Promise<NFTsResponse> => {
+export const fetchNFTs = async (pageSize = API.PAGINATION.DEFAULT_PAGE_SIZE, pageToken?: string): Promise<NFTsResponse> => {
     try {
         // Construct the endpoint
-        const endpoint = `${BASE_URL}/addresses/${ADDRESS}/balances:listCollectibles`;
+        const endpoint = `${API.BASE_URL}/addresses/${API.ADDRESSES.DEFAULT}/balances:listCollectibles`;
         const params = {
             pageSize,
             ...(pageToken && { pageToken })
         };
 
-        const response = await axios.get(endpoint, { params });
+        console.log(`Fetching NFTs from ${endpoint}`);
+        const response = await axios.get<ApiResponse>(endpoint, { params });
 
         // Check if response has collectibleBalances
         const apiCollectibles = response.data.collectibleBalances;
 
         if (!apiCollectibles || apiCollectibles.length === 0) {
-            // Return empty response
+            console.log('No collectibles found in API response');
             return {
                 collectibles: [],
                 nextPageToken: undefined,
@@ -31,90 +36,104 @@ export const fetchNFTs = async (pageSize = 10, pageToken?: string): Promise<NFTs
             };
         }
 
-        // Transform the API response to match our types
-        const transformedCollectibles: NFT[] = await Promise.all(apiCollectibles.map(async (item: any, index: number) => {
-            try {
-                let metadata = item.metadata || {};
-                let imageUrl = '';
-                let name = item.name || `NFT #${item.tokenId}`;
-                let description = '';
+        console.log(`Found ${apiCollectibles.length} collectibles`);
 
-                // If this is a JSON URL, try to fetch the metadata
-                if (item.tokenUri && item.tokenUri.endsWith('.json')) {
-                    try {
-                        const metadataResponse = await axios.get(convertIpfsToHttp(item.tokenUri));
-                        metadata = metadataResponse.data;
+        // Process collectibles with retry logic
+        const transformedCollectibles: NFT[] = await Promise.all(
+            apiCollectibles.map(async (item: ApiCollectible, index: number) => {
+                try {
+                    let metadata: NFTMetadata = {};
+                    let name = item.name || `NFT #${item.tokenId}`;
+                    let description = '';
 
-                        if (metadata.image) {
-                            imageUrl = convertIpfsToHttp(metadata.image);
+                    // Create placeholder as fallback
+                    const placeholderImage = getPlaceholderImageWithIndex(index);
+
+                    // Try to fetch metadata if tokenUri exists
+                    if (item.tokenUri) {
+                        try {
+                            console.log(`Processing tokenUri for NFT #${index}: ${item.tokenUri}`);
+                            metadata = await fetchMetadata(item.tokenUri);
+
+                            // Extract name and description if available
+                            if (metadata && metadata.name) {
+                                name = metadata.name;
+                            }
+
+                            if (metadata && metadata.description) {
+                                description = metadata.description;
+                            }
+                        } catch (metadataError) {
+                            console.error(`Failed to fetch metadata for NFT #${index}:`, metadataError);
                         }
-
-                        if (metadata.name) {
-                            name = metadata.name;
-                        }
-
-                        if (metadata.description) {
-                            description = metadata.description;
-                        }
-                    } catch (metadataError) {
-                        // Silently handle metadata fetch errors
+                    } else {
+                        console.log(`No tokenUri for NFT at index ${index}`);
                     }
-                } else if (item.tokenUri) {
-                    // The tokenUri itself might be the image URL
-                    imageUrl = convertIpfsToHttp(item.tokenUri);
-                }
 
-                // If we still don't have an image URL, use a placeholder
-                if (!imageUrl) {
-                    imageUrl = getPlaceholderImageWithIndex(index);
-                }
+                    // Extract image URL with fallbacks
+                    const imageUrl = await extractImageUrl(metadata, placeholderImage, index);
 
-                return {
-                    id: `${item.address}-${item.tokenId}`,
-                    contractAddress: item.address,
-                    tokenId: item.tokenId,
-                    name: name,
-                    description: description || metadata.description || '',
-                    mediaType: metadata.mediaType || 'image/jpeg',
-                    mediaUrl: imageUrl,
-                    thumbnailUrl: imageUrl,
-                    imageUrl: imageUrl,
-                    creator: metadata.creator || 'Unknown',
-                    collection: {
-                        name: item.name || 'Unknown Collection',
-                        description: metadata.description || '',
-                        imageUrl: metadata.image ? convertIpfsToHttp(metadata.image) : getPlaceholderImageWithIndex(index)
-                    },
-                    metadata: metadata,
-                    price: metadata.price || 0,
-                    owner: metadata.owner || 'Unknown',
-                    createdAt: new Date().toISOString()
-                };
-            } catch (error) {
-                // Return a basic NFT with placeholder image if transformation fails
-                return {
-                    id: `${item.address}-${item.tokenId}`,
-                    contractAddress: item.address,
-                    tokenId: item.tokenId,
-                    name: item.name || `NFT #${item.tokenId}`,
-                    description: '',
-                    mediaType: 'image/jpeg',
-                    mediaUrl: getPlaceholderImageWithIndex(index),
-                    thumbnailUrl: getPlaceholderImageWithIndex(index),
-                    imageUrl: getPlaceholderImageWithIndex(index),
-                    creator: 'Unknown',
-                    collection: {
-                        name: 'Unknown Collection',
+                    // Determine media type
+                    const mediaType = determineMediaType(imageUrl, metadata);
+
+                    // Construct collection info
+                    const collection = {
+                        name: item.name || COLLECTION.DEFAULT_NAME,
+                        symbol: item.symbol || '',
+                        description: metadata && metadata.collection?.description || COLLECTION.DEFAULT_DESCRIPTION,
+                        imageUrl: metadata && metadata.collection?.image
+                            ? await convertIpfsToHttpAsync(metadata.collection.image)
+                            : imageUrl
+                    };
+
+                    // Create NFT object
+                    return {
+                        id: `${item.address}-${item.tokenId}`,
+                        contractAddress: item.address,
+                        tokenId: item.tokenId,
+                        name: name,
+                        description: description,
+                        mediaType: mediaType,
+                        mediaUrl: imageUrl,
+                        thumbnailUrl: imageUrl,
+                        imageUrl: imageUrl,
+                        creator: metadata && metadata.creator || COMMON.UNKNOWN_CREATOR,
+                        collection: collection,
+                        metadata: metadata,
+                        price: metadata && metadata.price || 0,
+                        owner: metadata && metadata.owner || COMMON.UNKNOWN_OWNER,
+                        createdAt: new Date().toISOString(),
+                        ercType: item.ercType || 'ERC-721'
+                    };
+                } catch (error) {
+                    console.error(`Error processing NFT ${item.address}-${item.tokenId}:`, error);
+
+                    // Return basic NFT with placeholder on error
+                    return {
+                        id: `${item.address}-${item.tokenId}`,
+                        contractAddress: item.address,
+                        tokenId: item.tokenId,
+                        name: item.name || `NFT #${item.tokenId}`,
                         description: '',
-                        imageUrl: getPlaceholderImageWithIndex(index)
-                    },
-                    metadata: {},
-                    price: 0,
-                    owner: 'Unknown',
-                    createdAt: new Date().toISOString()
-                };
-            }
-        }));
+                        mediaType: 'image/jpeg',
+                        mediaUrl: getPlaceholderImageWithIndex(index),
+                        thumbnailUrl: getPlaceholderImageWithIndex(index),
+                        imageUrl: getPlaceholderImageWithIndex(index),
+                        creator: COMMON.UNKNOWN_CREATOR,
+                        collection: {
+                            name: item.name || COLLECTION.DEFAULT_NAME,
+                            description: COLLECTION.DEFAULT_DESCRIPTION,
+                            imageUrl: getPlaceholderImageWithIndex(index)
+                        },
+                        metadata: {},
+                        price: 0,
+                        owner: COMMON.UNKNOWN_OWNER,
+                        createdAt: new Date().toISOString(),
+                        ercType: item.ercType || 'ERC-721'
+                    };
+                }
+            })
+        );
 
         return {
             collectibles: transformedCollectibles,
