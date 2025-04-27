@@ -1,6 +1,6 @@
 # NFT Explorer
 
-A modern mobile application built with React Native and Expo that allows users to explore NFTs on the Avalanche blockchain.
+An open-source modern mobile application built with React Native and Expo that allows users to explore NFTs.
 
 <p align="center">
   <img src="https://i.imgur.com/YourNFTExplorerDemoGif.gif" alt="NFT Explorer Demo" width="300" />
@@ -137,7 +137,6 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 ## Acknowledgements
 
-- [Avalanche](https://www.avax.network/) for the blockchain API
 - [Expo](https://expo.dev/) for the development platform
 - [React Native](https://reactnative.dev/) for the framework
 - [Lorem Picsum](https://picsum.photos/) for placeholder images
